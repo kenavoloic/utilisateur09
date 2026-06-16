@@ -56,6 +56,19 @@ class Galerie(models.Model):
             slug = f"{slug_base}-{compteur}"
         return slug
 
+    def nombre_collections(self):
+        return Galerie.objects.filter(pk=self.pk).aggregate(
+            nombre=models.Count('collections', distinct=True)
+        )['nombre']
+
+    def nombre_total_photos(self):
+        # un Count(distinct=True) ne peut pas dédupliquer une photo présente
+        # à la fois via la relation directe et via une collection : on passe
+        # par Photo plutôt que par un annotate sur Galerie
+        return Photo.objects.filter(
+            models.Q(galeries=self) | models.Q(collections__galerie=self)
+        ).distinct().count()
+
 
 class Collection(models.Model):
     nom = models.CharField(max_length=255)
@@ -87,6 +100,11 @@ class Collection(models.Model):
             compteur += 1
             slug = f"{slug_base}-{compteur}"
         return slug
+
+    def nombre_photos(self):
+        return Collection.objects.filter(pk=self.pk).aggregate(
+            nombre=models.Count('photos', distinct=True)
+        )['nombre']
 
 
 class Tag(models.Model):

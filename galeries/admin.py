@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib import admin, messages
+from django.db.models import Count
 from django.forms.widgets import ClearableFileInput
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
@@ -247,18 +248,40 @@ class CollectionInline(admin.TabularInline):
 
 @admin.register(Galerie)
 class GalerieAdmin(RolesContributeursMixin, admin.ModelAdmin):
-    list_display = ('nom', 'slug', 'est_publique')
+    list_display = ('nom', 'slug', 'est_publique', 'nombre_collections_admin', 'nombre_total_photos_admin')
     list_filter = ('est_publique',)
     search_fields = ('nom', 'description')
     readonly_fields = ('slug',)
     inlines = [CollectionInline]
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            nombre_collections_annote=Count('collections', distinct=True),
+        )
+
+    @admin.display(description='Collections', ordering='nombre_collections_annote')
+    def nombre_collections_admin(self, obj):
+        return obj.nombre_collections_annote
+
+    @admin.display(description='Photos (total)')
+    def nombre_total_photos_admin(self, obj):
+        return obj.nombre_total_photos()
+
 
 @admin.register(Collection)
 class CollectionAdmin(RolesContributeursMixin, admin.ModelAdmin):
-    list_display = ('nom', 'slug', 'galerie')
+    list_display = ('nom', 'slug', 'galerie', 'nombre_photos_admin')
     list_filter = ('galerie',)
     readonly_fields = ('slug',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            nombre_photos_annote=Count('photos', distinct=True),
+        )
+
+    @admin.display(description='Photos', ordering='nombre_photos_annote')
+    def nombre_photos_admin(self, obj):
+        return obj.nombre_photos_annote
 
 
 @admin.register(Tag)
