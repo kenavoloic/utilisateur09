@@ -29,13 +29,20 @@ class BatchUploadForm(forms.Form):
     images = MultipleFileField(label="Photos (JPG/JPEG)")
 
 
+class DefinirAuteurForm(forms.Form):
+    auteur_nom    = forms.CharField(max_length=255, required=False, label="Nom")
+    auteur_prenom = forms.CharField(max_length=255, required=False, label="Prénom")
+    auteur_email  = forms.EmailField(max_length=255, required=False, label="Email")
+
+
 @admin.register(Photo)
 class PhotoAdmin(admin.ModelAdmin):
 
     #list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'largeur', 'hauteur', 'taille_mo')
 
     liste_roles_contributeurs = {Utilisateur.Role.ASSISTANT, Utilisateur.Role.PHOTOGRAPHE}
-    
+    actions = ['definir_auteur']
+
     list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'taille_mo')
     list_filter     = ('appareil', 'date_prise_de_vue')
     search_fields   = ('nom_fichier', 'titre', 'description', 'appareil', 'objectif')
@@ -85,12 +92,45 @@ class PhotoAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return request.user.role in self.liste_roles_contributeurs
 
+    @admin.action(description="Définir l'auteur des photos sélectionnées")
+    def definir_auteur(self, request, queryset):
+        request.session['photos_ids'] = list(queryset.values_list('pk', flat=True))
+        return HttpResponseRedirect('definir-auteur/')
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
             path('batch-upload/', self.admin_site.admin_view(self.batch_upload_view), name='galeries_photo_batch_upload'),
+            path('definir-auteur/', self.admin_site.admin_view(self.definir_auteur_view), name='galeries_photo_definir_auteur'),
         ]
         return custom_urls + urls
+
+    def definir_auteur_view(self, request):
+        ids = request.session.get('photos_ids', [])
+        queryset = Photo.objects.filter(pk__in=ids)
+
+        if request.method == 'POST':
+            form = DefinirAuteurForm(request.POST)
+            if form.is_valid():
+                queryset.update(
+                    auteur_nom=form.cleaned_data['auteur_nom'],
+                    auteur_prenom=form.cleaned_data['auteur_prenom'],
+                    auteur_email=form.cleaned_data['auteur_email'],
+                )
+                del request.session['photos_ids']
+                messages.success(request, f"Auteur mis à jour pour {queryset.count()} photo(s).")
+                return HttpResponseRedirect('../')
+        else:
+            form = DefinirAuteurForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': "Définir l'auteur",
+            'form': form,
+            'queryset': queryset,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/galeries/photo/definir_auteur.html', context)
 
     def batch_upload_view(self, request):
         if not self.has_add_permission(request):

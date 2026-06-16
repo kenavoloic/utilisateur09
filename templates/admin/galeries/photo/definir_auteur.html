@@ -1,0 +1,23 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Définir l'auteur</h1>
+
+<p>{{ queryset.count }} photo(s) sélectionnée(s) :</p>
+<ul>
+    {% for photo in queryset %}
+        <li>{{ photo.nom_fichier }}</li>
+    {% endfor %}
+</ul>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+        {{ form.as_p }}
+    </div>
+    <div class="submit-row">
+        <input type="submit" value="Appliquer" class="default">
+        <a href="../" class="closelink">Annuler</a>
+    </div>
+</form>
+{% endblock %}
