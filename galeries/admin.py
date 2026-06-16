@@ -48,12 +48,20 @@ class DefinirAuteurForm(forms.Form):
     auteur_email  = forms.EmailField(max_length=255, required=False, label="Email")
 
 
+class AjouterGalerieForm(forms.Form):
+    galerie = forms.ModelChoiceField(queryset=Galerie.objects.all(), label="Galerie")
+
+
+class AjouterCollectionForm(forms.Form):
+    collection = forms.ModelChoiceField(queryset=Collection.objects.all(), label="Collection")
+
+
 @admin.register(Photo)
 class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
 
     #list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'largeur', 'hauteur', 'taille_mo')
 
-    actions = ['definir_auteur']
+    actions = ['definir_auteur', 'ajouter_a_galerie', 'ajouter_a_collection']
     filter_horizontal = ('galeries', 'collections')
 
     list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'taille_mo')
@@ -104,11 +112,23 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         request.session['photos_ids'] = list(queryset.values_list('pk', flat=True))
         return HttpResponseRedirect('definir-auteur/')
 
+    @admin.action(description="Ajouter à une galerie")
+    def ajouter_a_galerie(self, request, queryset):
+        request.session['photos_ids'] = list(queryset.values_list('pk', flat=True))
+        return HttpResponseRedirect('ajouter-galerie/')
+
+    @admin.action(description="Ajouter à une collection")
+    def ajouter_a_collection(self, request, queryset):
+        request.session['photos_ids'] = list(queryset.values_list('pk', flat=True))
+        return HttpResponseRedirect('ajouter-collection/')
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
             path('batch-upload/', self.admin_site.admin_view(self.batch_upload_view), name='galeries_photo_batch_upload'),
             path('definir-auteur/', self.admin_site.admin_view(self.definir_auteur_view), name='galeries_photo_definir_auteur'),
+            path('ajouter-galerie/', self.admin_site.admin_view(self.ajouter_a_galerie_view), name='galeries_photo_ajouter_galerie'),
+            path('ajouter-collection/', self.admin_site.admin_view(self.ajouter_a_collection_view), name='galeries_photo_ajouter_collection'),
         ]
         return custom_urls + urls
 
@@ -138,6 +158,54 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             'opts': self.model._meta,
         }
         return render(request, 'admin/galeries/photo/definir_auteur.html', context)
+
+    def ajouter_a_galerie_view(self, request):
+        ids = request.session.get('photos_ids', [])
+        queryset = Photo.objects.filter(pk__in=ids)
+
+        if request.method == 'POST':
+            form = AjouterGalerieForm(request.POST)
+            if form.is_valid():
+                galerie = form.cleaned_data['galerie']
+                galerie.photos.add(*queryset)
+                del request.session['photos_ids']
+                messages.success(request, f"{queryset.count()} photo(s) ajoutée(s) à la galerie « {galerie} ».")
+                return HttpResponseRedirect('../')
+        else:
+            form = AjouterGalerieForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': "Ajouter à une galerie",
+            'form': form,
+            'queryset': queryset,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/galeries/photo/ajouter_galerie.html', context)
+
+    def ajouter_a_collection_view(self, request):
+        ids = request.session.get('photos_ids', [])
+        queryset = Photo.objects.filter(pk__in=ids)
+
+        if request.method == 'POST':
+            form = AjouterCollectionForm(request.POST)
+            if form.is_valid():
+                collection = form.cleaned_data['collection']
+                collection.photos.add(*queryset)
+                del request.session['photos_ids']
+                messages.success(request, f"{queryset.count()} photo(s) ajoutée(s) à la collection « {collection} ».")
+                return HttpResponseRedirect('../')
+        else:
+            form = AjouterCollectionForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': "Ajouter à une collection",
+            'form': form,
+            'queryset': queryset,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/galeries/photo/ajouter_collection.html', context)
 
     def batch_upload_view(self, request):
         if not self.has_add_permission(request):
@@ -183,5 +251,5 @@ class GalerieAdmin(RolesContributeursMixin, admin.ModelAdmin):
 
 @admin.register(Collection)
 class CollectionAdmin(RolesContributeursMixin, admin.ModelAdmin):
-    list_display = ('id', 'galerie')
+    list_display = ('nom', 'galerie')
     list_filter = ('galerie',)

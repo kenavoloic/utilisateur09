@@ -44,11 +44,15 @@ class Galerie(models.Model):
 
 
 class Collection(models.Model):
+    nom = models.CharField(max_length=200)
     galerie = models.ForeignKey(
         Galerie,
         on_delete=models.CASCADE,
         related_name='collections',
     )
+
+    def __str__(self):
+        return self.nom
 
 
 class Photo(models.Model):
