@@ -5,7 +5,26 @@ import pyexiv2
 from PIL import Image as PILImage
 
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.db import models
+
+
+class PhotoStorage(FileSystemStorage):
+    """Renomme les fichiers en collision avec un suffixe numérique (_01, _02, ..., _99)"""
+
+    def get_available_name(self, name, max_length=None):
+        base, ext = os.path.splitext(name)
+        compteur = 1
+        nouveau_nom = name
+        while self.exists(nouveau_nom):
+            nouveau_nom = f"{base}_{compteur:02d}{ext}"
+            compteur += 1
+        return nouveau_nom
+
+
+def photo_upload_path(instance, filename):
+    return f'photos/{filename}'
+
 
 class Galerie(models.Model):
     pass
@@ -18,7 +37,7 @@ class Collection(models.Model):
 class Photo(models.Model):
     """Photo chargée dans une galerie ou dans la collection d'une galerie"""
 
-    image        = models.ImageField(upload_to='photos/%Y/%m/')
+    image        = models.ImageField(upload_to=photo_upload_path, storage=PhotoStorage())
     nom_fichier  = models.CharField(max_length=255, editable=False)
     taille       = models.PositiveIntegerField(null=True, help_text="octets")
     largeur      = models.PositiveIntegerField(null=True, help_text="pixels")
@@ -36,14 +55,6 @@ class Photo(models.Model):
 
     latitude     = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude    = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-
-    # auteur       = models.ForeignKey(
-    #     settings.AUTH_USER_MODEL,
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     related_name='photos',
-    # )
 
     auteur_nom = models.CharField(max_length=255, null=True, blank=True)
     auteur_prenom = models.CharField(max_length=255, null=True, blank=True)
