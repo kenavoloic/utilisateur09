@@ -9,8 +9,9 @@ from django.utils.html import format_html
 from .models import Photo, Galerie, Collection, Tag
 from utilisateurs.models import Utilisateur
 
-
+# création d'un mixin pour éviter les répétitions de code
 class RolesContributeursMixin:
+    """rôles pouvant charger des images, le photographe ou ses assistants"""
     liste_roles_contributeurs = {Utilisateur.Role.ASSISTANT, Utilisateur.Role.PHOTOGRAPHE}
 
     def has_add_permission(self, request):
@@ -22,11 +23,14 @@ class RolesContributeursMixin:
     def has_delete_permission(self, request, obj=None):
         return request.user.role in self.liste_roles_contributeurs
 
+    
 class MultipleFileInput(ClearableFileInput):
+    """permet la sélection de plusieurs images en une fois et rend donc possible le chargement par batch"""
     allow_multiple_selected = True
 
 
 class MultipleFileField(forms.FileField):
+    """seuls les jpg et les jpegs sont permis, pour l'instant"""
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('widget', MultipleFileInput(attrs={'accept': '.jpg,.jpeg'}))
         super().__init__(*args, **kwargs)

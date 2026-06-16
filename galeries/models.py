@@ -11,7 +11,7 @@ from django.utils.text import slugify
 
 
 class PhotoStorage(FileSystemStorage):
-    """Renomme les fichiers en collision avec un suffixe numérique (_01, _02, ..., _99)"""
+    """Renomme les fichiers en collision avec un suffixe numérique (_001, _002, ..., _999)"""
 
     def get_available_name(self, name, max_length=None):
         base, ext = os.path.splitext(name)
@@ -60,6 +60,8 @@ class Galerie(models.Model):
 class Collection(models.Model):
     nom = models.CharField(max_length=255)
     slug = models.SlugField(blank=True)
+
+    #en cas de suppression de la galerie qui contient la collection, la collection est supprimée
     galerie = models.ForeignKey(
         Galerie,
         on_delete=models.CASCADE,
