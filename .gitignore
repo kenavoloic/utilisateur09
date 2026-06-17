@@ -18,3 +18,7 @@ wheels/
 
 # ztemp
 ztemp/
+
+# base de données locale et fichiers médias uploadés
+db.sqlite3
+media/

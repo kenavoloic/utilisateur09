@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ config.titre_complet }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/home.css' %}" />
+{% endblock %}
+
+{% block content %}
+
+<section class="hero" id="hero">
+  <div class="hero-image-side">
+    {% if hero_image %}
+      <img src="{{ hero_image.url }}" alt="" class="hero-image" />
+    {% else %}
+      <div class="hero-image-placeholder"></div>
+    {% endif %}
+  </div>
+  <div class="hero-text-side">
+    <p class="hero-eyebrow reveal">{{ config.hero_sous_titre }}</p>
+    <h1 class="hero-title reveal reveal-d1">
+      {{ config.nom_site|upper|slice:":4" }}
+      <span class="line2">{{ config.nom_site|upper|slice:"5:" }}</span>
+    </h1>
+    <p class="hero-desc reveal reveal-d2">
+      {{ config.hero_description }}
+    </p>
+    <div class="hero-actions reveal reveal-d3">
+      <a class="btn-primary" href="#galeries">{{ config.btn_voir_galeries }}</a>
+      <a class="btn-ghost" href="#" data-open-private>{{ config.btn_acces_prive }}</a>
+    </div>
+  </div>
+</section>
+
+<section id="galeries">
+  <div class="section-header reveal">
+    <h2 class="section-title">{{ config.titre_galeries }}</h2>
+    <span class="section-count">{{ galeries|length }} galeries</span>
+  </div>
+  <div class="gallery-grid">
+    {% for galerie in galeries %}
+    <a class="gallery-card reveal {% cycle '' 'reveal-d1' 'reveal-d2' %}"
+       href="{% url 'galeries:galerie_detail' galerie_slug=galerie.slug %}">
+      <div class="gallery-card-image-wrap">
+        {% if galerie.image_couverture %}
+          <img src="{{ galerie.image_couverture.url }}" alt="{{ galerie.nom }}" class="gallery-card-image" />
+        {% else %}
+          {% with photo_couverture=galerie.get_photo_couverture %}
+            {% if photo_couverture and photo_couverture.image %}
+              <img src="{{ photo_couverture.image.url }}" alt="{{ galerie.nom }}" class="gallery-card-image" />
+            {% else %}
+              <div class="gallery-card-image-placeholder"></div>
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+      </div>
+      <div class="gallery-card-body">
+        <div>
+          <div class="gallery-card-title">{{ galerie.nom }}</div>
+          <div class="gallery-card-meta">{% with c_count=galerie.collections.count p_count=galerie.get_total_photos %}{{ c_count }} collection{% if c_count > 1 %}s{% endif %} · {{ p_count }} photo{% if p_count > 1 %}s{% endif %}{% endwith %}</div>
+        </div>
+        <span class="gallery-card-arrow">↗</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<section id="acces-prive">
+  <div class="private-text reveal">
+    <h2>{{ config.titre_acces_prive }}</h2>
+    <p>{{ config.description_acces_prive }}</p>
+  </div>
+  <a class="btn-primary reveal reveal-d1" href="#" data-open-private>{{ config.modal_btn_entrer_code }}</a>
+</section>
+
+<!-- Modal accès privé -->
+<div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <button class="modal-close" onclick="closePrivateModal()" aria-label="Fermer">✕</button>
+    <div id="modal-form-content">
+      <p class="modal-eyebrow">Accès restreint</p>
+      <h2 class="modal-title" id="modal-title">{{ config.modal_titre }}</h2>
+      <p class="modal-subtitle">{{ config.modal_sous_titre }}</p>
+      <form id="private-form" data-endpoint="{% url 'accueil:index' %}">
+        {% csrf_token %}
+        <div class="form-field">
+          <label class="form-label" for="email-input">Votre email</label>
+          <input class="form-input" id="email-input" name="email" type="email"
+                 placeholder="nom@exemple.com" autocomplete="email" required />
+          <p class="form-error" id="email-error">Veuillez saisir un email valide.</p>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="code-input">Code d'accès</label>
+          <input class="form-input" id="code-input" name="code" type="text"
+                 placeholder="{{ config.modal_placeholder_code }}" autocomplete="off" maxlength="20"
+                 style="letter-spacing:0.15em; text-transform:uppercase;" required />
+          <p class="form-error" id="code-error">Ce code est invalide. Vérifiez votre message.</p>
+        </div>
+        <button type="submit" class="btn-primary btn-full">{{ config.modal_btn_acceder }}</button>
+      </form>
+    </div>
+    <div class="form-success" id="modal-success" style="display:none;">
+      <span class="form-success-icon">✦</span>
+      <h3>Accès accordé</h3>
+      <p>Votre galerie privée est en cours de chargement…</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modal.js' %}"></script>
+{% endblock %}
+
+{% block modals %}
+<!-- MODAL ACCÈS PRIVÉ -->
+<div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()" aria-label="Fermer">✕</button>
+    <div id="modal-form-content">
+      <p class="modal-eyebrow">Accès restreint</p>
+      <h2 class="modal-title" id="modal-title">{{ config.modal_titre }}</h2>
+      <p class="modal-subtitle">{{ config.modal_sous_titre }}</p>
+      <form id="private-form" onsubmit="handleSubmit(event)">
+        {% csrf_token %}
+        <div class="form-field">
+          <label class="form-label" for="email-input">Votre email</label>
+          <input class="form-input" id="email-input" type="email" placeholder="nom@exemple.com" autocomplete="email" />
+          <p class="form-error" id="email-error">Veuillez saisir un email valide.</p>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="code-input">Code d'accès</label>
+          <input class="form-input" id="code-input" type="text" placeholder="{{ modal_placeholder_code }}" autocomplete="off" maxlength="20" style="letter-spacing:0.15em; text-transform:uppercase;" />
+          <p class="form-error" id="code-error">Ce code est invalide. Vérifiez votre message.</p>
+        </div>
+        <button type="submit" class="btn-primary btn-full">{{ config.modal_btn_acceder }}</button>
+      </form>
+    </div>
+    <div class="form-success" id="modal-success" style="display:none;">
+      <span class="form-success-icon">✦</span>
+      <h3>Accès accordé</h3>
+      <p>Votre galerie privée est en cours de chargement…</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

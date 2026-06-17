@@ -31,7 +31,9 @@ class Galerie(models.Model):
     nom = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True)
     description = models.CharField(max_length=255, blank=True)
+    image_couverture = models.ImageField(upload_to="galeries/couvertures/", blank=True)
     est_publique = models.BooleanField(default=True)
+    ordre_affichage = models.PositiveIntegerField(default=0)
 
     masonry_layout_manuel = models.BooleanField(default=True, verbose_name="Masonry manuel", help_text="Ordre d'affichage défini par le photographe.",)
     #created_at = models.DateTimeField(auto_now_add=True)
@@ -71,6 +73,13 @@ class Galerie(models.Model):
             models.Q(galeries=self) | models.Q(collections__galerie=self)
         ).distinct().count()
 
+    def get_total_photos(self):
+        return self.nombre_total_photos()
+
+    def get_photo_couverture(self):
+        """Retourne la photo marquée comme couverture, sinon None"""
+        return self.photos.filter(est_couverture=True).first()
+
 
 class Collection(models.Model):
     nom = models.CharField(max_length=255)
@@ -84,6 +93,7 @@ class Collection(models.Model):
     )
 
     masonry_layout_manuel = models.BooleanField(default=True, verbose_name="Masonry manuel", help_text="Ordre d'affichage défini par le photographe.",)
+    ordre_affichage = models.PositiveIntegerField(default=0)
         
     class Meta:
         unique_together = ('galerie', 'slug')
@@ -148,6 +158,7 @@ class Photo(models.Model):
 
     titre        = models.CharField(max_length=255, blank=True)
     description  = models.TextField(blank=True)
+    est_couverture = models.BooleanField(default=False, verbose_name="Photo de couverture")
 
     date_prise_de_vue = models.DateTimeField(null=True, blank=True)
     appareil     = models.CharField(max_length=255, blank=True)
@@ -283,3 +294,244 @@ class Photo(models.Model):
     def _dms_en_decimal(dms_str):
         d, m, s = [Fraction(x) for x in dms_str.split()]
         return round(float(d) + float(m) / 60 + float(s) / 3600, 6)
+
+class AccesGalerie(models.Model):
+    """Système d'accès privé pour les galeries"""
+
+    galerie = models.ForeignKey(
+        Galerie, on_delete=models.CASCADE, related_name="acces_prives"
+    )
+
+    # Code d'accès unique pour cette galerie
+    code_acces = models.CharField(
+        max_length=20, unique=True, help_text="Code d'accès généré automatiquement"
+    )
+
+    # Titre personnalisé pour cet accès (optionnel)
+    titre_acces = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Titre personnalisé pour identifier cet accès (ex: 'Mariage Julie & Pierre')",
+    )
+
+    # Configuration d'accès
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_expiration = models.DateTimeField(
+        blank=True, null=True, help_text="Laissez vide pour un accès illimité"
+    )
+
+    # Limitations d'accès
+    nombre_max_visiteurs = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        help_text="Nombre maximum de visiteurs autorisés (laissez vide pour illimité)",
+    )
+
+    # Permissions
+    permettre_telechargement = models.BooleanField(
+        default=True,
+        help_text="Autoriser le téléchargement des photos haute résolution",
+    )
+
+    # Statistiques
+    nombre_acces = models.PositiveIntegerField(
+        default=0, help_text="Nombre total d'accès avec ce code"
+    )
+
+    # Activation
+    est_actif = models.BooleanField(
+        default=True, help_text="Désactiver temporairement cet accès"
+    )
+
+    cree_le = models.DateTimeField(auto_now_add=True)
+    modifie_le = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-cree_le"]
+        verbose_name = "Accès privé"
+        verbose_name_plural = "Accès privés"
+
+    def __str__(self):
+        titre = self.titre_acces or f"Accès {self.code_acces}"
+        return f"{self.galerie.nom} - {titre}"
+
+    def save(self, *args, **kwargs):
+        if not self.code_acces:
+            self.code_acces = self.generer_code_acces()
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def generer_code_acces():
+        """Génère un code d'accès unique"""
+        while True:
+            # Générer un code lisible (sans caractères ambigus)
+            code = get_random_string(
+                length=8, allowed_chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+            )
+            # Vérifier l'unicité
+            if not AccesGalerie.objects.filter(code_acces=code).exists():
+                return code
+
+    def est_valide(self):
+        """Vérifie si l'accès est valide (actif, pas expiré, limite non atteinte)"""
+        from django.utils import timezone
+
+        if not self.est_actif:
+            return False
+
+        if self.date_expiration and timezone.now() > self.date_expiration:
+            return False
+
+        if self.nombre_max_visiteurs:
+            visiteurs_actuels = self.visiteurs.filter(est_actif=True).count()
+            if visiteurs_actuels >= self.nombre_max_visiteurs:
+                return False
+
+        return True
+
+    def incrementer_acces(self):
+        """Incrémente le compteur d'accès"""
+        self.nombre_acces += 1
+        self.save(update_fields=["nombre_acces"])
+
+
+class VisiteurGalerie(models.Model):
+    """Visiteur ayant accès à une galerie privée"""
+
+    acces_galerie = models.ForeignKey(
+        AccesGalerie, on_delete=models.CASCADE, related_name="visiteurs"
+    )
+
+    # Identité du visiteur
+    email = models.EmailField(help_text="Email du visiteur")
+    nom = models.CharField(
+        max_length=100, blank=True, help_text="Nom du visiteur (optionnel)"
+    )
+
+    # Authentification
+    token_acces = models.CharField(
+        max_length=64,
+        unique=True,
+        help_text="Token unique pour l'authentification en session",
+    )
+
+    # Suivi d'activité
+    date_premier_acces = models.DateTimeField(
+        blank=True, null=True, help_text="Date du premier accès à la galerie"
+    )
+    date_dernier_acces = models.DateTimeField(
+        blank=True, null=True, help_text="Date du dernier accès à la galerie"
+    )
+
+    nombre_visites = models.PositiveIntegerField(
+        default=0, help_text="Nombre total de visites"
+    )
+
+    # Activation
+    est_actif = models.BooleanField(
+        default=True, help_text="Désactiver l'accès pour ce visiteur spécifique"
+    )
+
+    cree_le = models.DateTimeField(auto_now_add=True)
+    modifie_le = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("acces_galerie", "email")]
+        ordering = ["-date_dernier_acces"]
+        verbose_name = "Visiteur"
+        verbose_name_plural = "Visiteurs"
+
+    def __str__(self):
+        nom_affiche = self.nom or self.email.split("@")[0]
+        return f"{nom_affiche} - {self.acces_galerie.galerie.nom}"
+
+    def save(self, *args, **kwargs):
+        if not self.token_acces:
+            self.token_acces = self.generer_token()
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def generer_token():
+        """Génère un token d'accès sécurisé unique"""
+        while True:
+            token = secrets.token_urlsafe(48)  # 64 caractères URL-safe
+            if not VisiteurGalerie.objects.filter(token_acces=token).exists():
+                return token
+
+    def marquer_visite(self):
+        """Enregistre une nouvelle visite"""
+        from django.utils import timezone
+
+        maintenant = timezone.now()
+
+        if not self.date_premier_acces:
+            self.date_premier_acces = maintenant
+
+        self.date_dernier_acces = maintenant
+        self.nombre_visites += 1
+        self.save(
+            update_fields=["date_premier_acces", "date_dernier_acces", "nombre_visites"]
+        )
+
+    def peut_acceder(self):
+        """Vérifie si le visiteur peut accéder à la galerie"""
+        return self.est_actif and self.acces_galerie.est_valide()
+
+    def envoyer_notification_acces(self):
+        """Envoie un email de notification d'accès au visiteur"""
+        try:
+            galerie = self.acces_galerie.galerie
+            sujet = f"Accès à la galerie privée : {galerie.nom}"
+
+            message = f"""Bonjour{" " + self.nom if self.nom else ""},
+
+Vous avez maintenant accès à la galerie privée "{galerie.nom}".
+
+Code d'accès : {self.acces_galerie.code_acces}
+Lien direct : {settings.SITE_URL}/galerie/prive/{self.acces_galerie.code_acces}/?token={self.token_acces}
+
+{galerie.description if galerie.description else ""}
+
+Cordialement,
+{settings.DEFAULT_FROM_EMAIL}
+            """
+
+            send_mail(
+                subject=sujet,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[self.email],
+                fail_silently=False,
+            )
+            return True
+
+        except Exception:
+            return False
+
+    @staticmethod
+    def get_galeries_accessibles(email):
+        """Récupère toutes les galeries privées accessibles à un visiteur donné"""
+
+        visiteurs = VisiteurGalerie.objects.filter(
+            email=email, est_actif=True, acces_galerie__est_actif=True
+        ).select_related("acces_galerie__galerie")
+
+        # Filtrer les accès valides (non expirés, limites respectées)
+        galeries_accessibles = []
+        for visiteur in visiteurs:
+            if visiteur.acces_galerie.est_valide():
+                galeries_accessibles.append(visiteur.acces_galerie.galerie.id)
+
+        return Galerie.objects.filter(
+            id__in=galeries_accessibles, est_publique=False
+        ).order_by("nom")
+
+    @staticmethod
+    def get_visiteur_par_token(token):
+        """Récupère un visiteur par son token d'accès"""
+        try:
+            return VisiteurGalerie.objects.select_related("acces_galerie__galerie").get(
+                token_acces=token, est_actif=True
+            )
+        except VisiteurGalerie.DoesNotExist:
+            return None    

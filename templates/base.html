@@ -1,0 +1,53 @@
+{% load static %}<!DOCTYPE html>
+<html lang="fr" data-theme="dark" id="top">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ config.titre_complet }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ config.description_site }}{% endblock %}" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="{% static 'css/base.css' %}" />
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <nav class="site-nav {% block nav_class %}{% endblock %}">
+    <a href="{% url 'accueil:index' %}" class="nav-logo">{{ config.nom_site|upper|slice:":4" }}<span>.</span>{{ config.nom_site|upper|slice:"5:8" }}<span>.</span>{{ config.nom_site|upper|slice:"9:" }}</a>
+    <div class="nav-right">
+      <ul class="nav-links">
+        <li><a href="{% url 'accueil:index' %}#galeries">{{ config.nav_galeries }}</a></li>
+        <li><a href="{% url 'accueil:index' %}#acces-prive">{{ config.nav_acces_prive }}</a></li>
+        <li><a href="{% url 'accueil:contact' %}">{{ config.nav_contact }}</a></li>
+      </ul>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Basculer le thème">
+        <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+          <line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="display:none">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <footer class="site-footer" id="contact">
+    <a href="#top" class="footer-logo">{{ config.nom_site|upper }}</a>
+    <div class="footer-meta">
+      <span class="footer-copy">© {% now "Y" %} · {{ config.footer_copyright }}</span>
+      <a href="{% url 'admin:index' %}" class="footer-link">Admin</a>
+    </div>
+  </footer>
+
+  <script src="{% static 'js/theme.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

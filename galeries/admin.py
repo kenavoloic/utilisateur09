@@ -83,7 +83,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             "fields": ('vignette', 'image', 'nom_fichier', 'taille_mo', 'largeur', 'hauteur', 'auteur_nom', 'auteur_prenom', 'auteur_email'),
         }),
         ("Contenu", {
-            "fields": ('titre', 'description'),
+            "fields": ('titre', 'description', 'est_couverture'),
         }),
         ("Galeries", {
             "fields": ('galeries', 'collections', 'tags'),
