@@ -13,6 +13,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/masonry-optimized.js' %}"></script>
+<script src="{% static 'js/lightbox.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -42,9 +43,9 @@
     {% for photo in photos %}
       <div class="photo-item reveal">
         {% if photo.image %}
-          <div class="photo-link">
+          <a class="photo-link" href="{{ photo.image.url }}">
             <img src="{{ photo.image.url }}" alt="{{ photo.titre|default:galerie.nom }}" />
-          </div>
+          </a>
         {% else %}
           <div class="photo-placeholder">
             <span>📷</span>
