@@ -187,6 +187,7 @@ class Photo(models.Model):
     image        = models.ImageField(upload_to=photo_upload_path, storage=PhotoStorage())
     nom_fichier  = models.CharField(max_length=255, editable=False)
     hash_fichier = models.CharField(max_length=64, blank=True, editable=False, db_index=True)
+    date_chargement = models.DateTimeField(auto_now_add=True, db_index=True)
     taille       = models.PositiveIntegerField(null=True, help_text="octets")
     largeur      = models.PositiveIntegerField(null=True, help_text="pixels")
     hauteur      = models.PositiveIntegerField(null=True, help_text="pixels")

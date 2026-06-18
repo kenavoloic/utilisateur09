@@ -13,7 +13,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 from django.utils.timezone import make_aware
 from django.utils.translation import gettext_lazy as _
-from rangefilter.filters import AdminSplitDateTime, DateTimeRangeFilter
+from rangefilter.filters import AdminSplitDateTime, DateRangeFilter, DateTimeRangeFilter
 
 from .models import Photo, Galerie, Collection, Tag, calculer_hash_fichier, ordonner_photos
 from utilisateurs.models import Utilisateur
@@ -174,7 +174,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
     filter_horizontal = ('galeries', 'collections', 'tags')
 
     list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'taille_mo')
-    list_filter     = ('appareil', ('date_prise_de_vue', FiltrePlageDateHeure))
+    list_filter     = ('appareil', ('date_prise_de_vue', FiltrePlageDateHeure), ('date_chargement', DateRangeFilter))
     search_fields   = ('nom_fichier', 'titre', 'description', 'appareil', 'objectif')
 
     PARAMS_FILTRE_DATE = (
@@ -256,11 +256,12 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         'vignette', 'nom_fichier', 'taille_mo', 'largeur', 'hauteur',
         'appareil', 'objectif', 'ouverture', 'vitesse', 'iso',
         'date_prise_de_vue', 'latitude', 'longitude', 'tags_affiches',
+        'date_chargement',
     )
 
     fieldsets = (
         ("Fichier", {
-            "fields": ('vignette', 'image', 'nom_fichier', 'taille_mo', 'largeur', 'hauteur', 'auteur_nom', 'auteur_prenom', 'auteur_email'),
+            "fields": ('vignette', 'image', 'nom_fichier', 'date_chargement', 'taille_mo', 'largeur', 'hauteur', 'auteur_nom', 'auteur_prenom', 'auteur_email'),
         }),
         ("Contenu", {
             "fields": ('titre', 'description', 'est_couverture', 'tags_affiches'),
