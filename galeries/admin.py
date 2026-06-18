@@ -554,4 +554,5 @@ class TagAdmin(RolesContributeursMixin, admin.ModelAdmin):
 
     @admin.display(description='Photos', ordering='nombre_photos_annote')
     def nombre_photos_admin(self, obj):
-        return obj.nombre_photos_annote
+        url = reverse('admin:galeries_photo_changelist') + f'?tags__id__exact={obj.pk}'
+        return format_html('<a href="{}">{}</a>', url, obj.nombre_photos_annote)
