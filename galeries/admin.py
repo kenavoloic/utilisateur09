@@ -165,6 +165,27 @@ class FiltrePlageDateHeure(DateTimeRangeFilter):
         )
 
 
+class AttributionFilter(admin.SimpleListFilter):
+    title = "Attribution"
+    parameter_name = "attribution"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("galerie", "Dans une galerie"),
+            ("collection", "Dans une collection"),
+            ("aucune", "Sans attribution"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "galerie":
+            return queryset.filter(galeries__isnull=False).distinct()
+        if self.value() == "collection":
+            return queryset.filter(collections__isnull=False).distinct()
+        if self.value() == "aucune":
+            return queryset.filter(galeries__isnull=True, collections__isnull=True)
+        return queryset
+
+
 @admin.register(Photo)
 class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
 
@@ -174,7 +195,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
     filter_horizontal = ('galeries', 'collections', 'tags')
 
     list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'taille_mo')
-    list_filter     = ('appareil', ('date_prise_de_vue', FiltrePlageDateHeure), ('date_chargement', DateRangeFilter))
+    list_filter     = (AttributionFilter, 'appareil', ('date_prise_de_vue', FiltrePlageDateHeure), ('date_chargement', DateRangeFilter))
     search_fields   = ('nom_fichier', 'titre', 'description', 'appareil', 'objectif')
 
     PARAMS_FILTRE_DATE = (
