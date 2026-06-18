@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin
 from django import forms
 from django.contrib import admin, messages
@@ -7,6 +9,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import path, reverse
 from django.utils.html import format_html
+from rangefilter.filters import DateTimeRangeFilter
 
 from .models import Photo, Galerie, Collection, Tag, calculer_hash_fichier, ordonner_photos
 from utilisateurs.models import Utilisateur
@@ -71,8 +74,47 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
     filter_horizontal = ('galeries', 'collections', 'tags')
 
     list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'taille_mo')
-    list_filter     = ('appareil', 'date_prise_de_vue')
+    list_filter     = ('appareil', ('date_prise_de_vue', DateTimeRangeFilter))
     search_fields   = ('nom_fichier', 'titre', 'description', 'appareil', 'objectif')
+
+    PARAMS_FILTRE_DATE = (
+        'date_prise_de_vue__range__gte_0', 'date_prise_de_vue__range__gte_1',
+        'date_prise_de_vue__range__lte_0', 'date_prise_de_vue__range__lte_1',
+    )
+    CLE_SESSION_FILTRE_DATE = 'photo_admin_dernier_filtre_date'
+
+    def changelist_view(self, request, extra_context=None):
+        if 'vider_filtre_date' in request.GET:
+            request.session.pop(self.CLE_SESSION_FILTRE_DATE, None)
+            return HttpResponseRedirect(request.path)
+
+        filtre_present = any(p in request.GET for p in self.PARAMS_FILTRE_DATE)
+
+        if filtre_present:
+            request.session[self.CLE_SESSION_FILTRE_DATE] = {
+                p: request.GET[p] for p in self.PARAMS_FILTRE_DATE if p in request.GET
+            }
+            messages.info(
+                request,
+                format_html(
+                    'Filtre de date mémorisé, il sera réappliqué automatiquement '
+                    'à votre prochaine visite. <a href="{}?vider_filtre_date=1">Oublier ce filtre</a>',
+                    request.path,
+                ),
+            )
+        elif not request.GET and self.CLE_SESSION_FILTRE_DATE in request.session:
+            query_string = urlencode(request.session[self.CLE_SESSION_FILTRE_DATE])
+            messages.info(
+                request,
+                format_html(
+                    'Le dernier filtre de date utilisé a été réappliqué automatiquement. '
+                    '<a href="{}?vider_filtre_date=1">Réinitialiser le filtre</a>',
+                    request.path,
+                ),
+            )
+            return HttpResponseRedirect(f'{request.path}?{query_string}')
+
+        return super().changelist_view(request, extra_context=extra_context)
     readonly_fields = (
         'vignette', 'nom_fichier', 'taille_mo', 'largeur', 'hauteur',
         'appareil', 'objectif', 'ouverture', 'vitesse', 'iso',

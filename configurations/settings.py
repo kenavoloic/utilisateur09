@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "utilisateurs",
     "galeries",
     "adminsortable2",
+    "rangefilter",
 ]
 
 MIDDLEWARE = [
