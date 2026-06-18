@@ -182,11 +182,43 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         'date_prise_de_vue__range__lte_0', 'date_prise_de_vue__range__lte_1',
     )
     CLE_SESSION_FILTRE_DATE = 'photo_admin_dernier_filtre_date'
+    CLE_SESSION_DERNIER_UPLOAD = 'photo_admin_dernier_upload'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if getattr(request, '_filtrer_photos_recemment_uploadees', False):
+            return qs.filter(pk__in=request.session[self.CLE_SESSION_DERNIER_UPLOAD])
+        return qs
 
     def changelist_view(self, request, extra_context=None):
+        if 'voir_toutes_photos' in request.GET:
+            request.session.pop(self.CLE_SESSION_DERNIER_UPLOAD, None)
+            return HttpResponseRedirect(request.path)
+
         if 'vider_filtre_date' in request.GET:
             request.session.pop(self.CLE_SESSION_FILTRE_DATE, None)
             return HttpResponseRedirect(request.path)
+
+        if (
+            request.GET.get('recemment_uploadees')
+            and self.CLE_SESSION_DERNIER_UPLOAD in request.session
+        ):
+            nb = len(request.session[self.CLE_SESSION_DERNIER_UPLOAD])
+            messages.info(
+                request,
+                format_html(
+                    'Affichage des {} photo(s) récemment uploadée(s). '
+                    '<a href="{}?voir_toutes_photos=1">Voir toutes les photos</a>',
+                    nb,
+                    request.path,
+                ),
+            )
+            # Django rejette tout paramètre GET qui ne correspond pas à un
+            # filtre/champ réel : on le retire avant de lui passer la main,
+            # et on note l'info ailleurs pour que get_queryset() la lise.
+            request._filtrer_photos_recemment_uploadees = True
+            request.GET = request.GET.copy()
+            del request.GET['recemment_uploadees']
 
         filtre_present = any(p in request.GET for p in self.PARAMS_FILTRE_DATE)
 
@@ -415,7 +447,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             form = BatchUploadForm(request.POST, request.FILES)
             if form.is_valid():
                 fichiers = request.FILES.getlist('images')
-                nb_succes = 0
+                pks_nouvelles_photos = []
                 nb_doublons = 0
                 for fichier in fichiers:
                     if Photo.objects.filter(
@@ -425,11 +457,14 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
                         continue
                     photo = Photo()
                     photo.image.save(fichier.name, fichier, save=True)
-                    nb_succes += 1
-                message = f"{nb_succes} photo(s) uploadée(s) avec succès."
+                    pks_nouvelles_photos.append(photo.pk)
+                message = f"{len(pks_nouvelles_photos)} photo(s) uploadée(s) avec succès."
                 if nb_doublons:
                     message += f" {nb_doublons} photo(s) déjà existante(s) ignorée(s)."
                 messages.success(request, message)
+                if pks_nouvelles_photos:
+                    request.session[self.CLE_SESSION_DERNIER_UPLOAD] = pks_nouvelles_photos
+                    return HttpResponseRedirect('../?recemment_uploadees=1')
                 return HttpResponseRedirect('../')
         else:
             form = BatchUploadForm()
