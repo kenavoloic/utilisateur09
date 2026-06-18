@@ -1,3 +1,5 @@
+import datetime
+from collections import OrderedDict
 from urllib.parse import urlencode
 
 from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin
@@ -9,7 +11,9 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import path, reverse
 from django.utils.html import format_html
-from rangefilter.filters import DateTimeRangeFilter
+from django.utils.timezone import make_aware
+from django.utils.translation import gettext_lazy as _
+from rangefilter.filters import AdminSplitDateTime, DateTimeRangeFilter
 
 from .models import Photo, Galerie, Collection, Tag, calculer_hash_fichier, ordonner_photos
 from utilisateurs.models import Utilisateur
@@ -65,16 +69,112 @@ class AjouterCollectionForm(forms.Form):
     collection = forms.ModelChoiceField(queryset=Collection.objects.all(), label="Collection")
 
 
+class AjouterTagForm(forms.Form):
+    tags = forms.ModelMultipleChoiceField(
+        queryset=Tag.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Tags existants",
+    )
+    nouveaux_tags = forms.CharField(
+        required=False,
+        label="Nouveaux tags",
+        help_text="Séparés par des virgules",
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get("tags") and not cleaned_data.get("nouveaux_tags"):
+            raise forms.ValidationError(
+                "Sélectionnez au moins un tag existant ou saisissez-en un nouveau."
+            )
+        return cleaned_data
+
+
+class WidgetDateHeurePreRemplie(AdminSplitDateTime):
+    """Pré-affiche une heure par défaut dans le sous-champ heure tant qu'aucune
+    valeur n'a été saisie (le sous-champ date, lui, reste vide)."""
+
+    def __init__(self, heure_par_defaut, attrs=None):
+        self.heure_par_defaut = heure_par_defaut
+        super().__init__(attrs=attrs)
+
+    def decompress(self, value):
+        date_partie, heure_partie = super().decompress(value)
+        if heure_partie is None:
+            heure_partie = self.heure_par_defaut
+        return [date_partie, heure_partie]
+
+
+class ChampDateHeurePreRempli(forms.SplitDateTimeField):
+    """Si seule la date est renseignée, applique l'heure par défaut plutôt que
+    d'exiger une saisie ; si la date est vide, le champ est simplement ignoré
+    (filtre ouvert d'un seul côté), même si l'heure pré-remplie est présente."""
+
+    def __init__(self, *args, heure_par_defaut, **kwargs):
+        self.heure_par_defaut = heure_par_defaut
+        super().__init__(*args, **kwargs)
+
+    def compress(self, data_list):
+        if not data_list:
+            return None
+        date_valeur, heure_valeur = data_list
+        if date_valeur in self.empty_values:
+            return None
+        if heure_valeur in self.empty_values:
+            heure_valeur = self.heure_par_defaut
+        return make_aware(datetime.datetime.combine(date_valeur, heure_valeur))
+
+
+class FiltrePlageDateHeure(DateTimeRangeFilter):
+    """DateTimeRangeFilter dont les champs heure affichent 00:00:00/23:59:59
+    par défaut, pour filtrer une journée entière sans saisie manuelle de l'heure."""
+
+    def _get_form_fields(self):
+        return OrderedDict(
+            (
+                (
+                    self.lookup_kwarg_gte,
+                    ChampDateHeurePreRempli(
+                        heure_par_defaut=datetime.time(0, 0, 0),
+                        label="",
+                        widget=WidgetDateHeurePreRemplie(
+                            heure_par_defaut=datetime.time(0, 0, 0),
+                            attrs={"placeholder": _("From date")},
+                        ),
+                        localize=True,
+                        required=False,
+                        initial=self.default_gte,
+                    ),
+                ),
+                (
+                    self.lookup_kwarg_lte,
+                    ChampDateHeurePreRempli(
+                        heure_par_defaut=datetime.time(23, 59, 59),
+                        label="",
+                        widget=WidgetDateHeurePreRemplie(
+                            heure_par_defaut=datetime.time(23, 59, 59),
+                            attrs={"placeholder": _("To date")},
+                        ),
+                        localize=True,
+                        required=False,
+                        initial=self.default_lte,
+                    ),
+                ),
+            )
+        )
+
+
 @admin.register(Photo)
 class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
 
     #list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'largeur', 'hauteur', 'taille_mo')
 
-    actions = ['definir_auteur', 'ajouter_a_galerie', 'ajouter_a_collection']
+    actions = ['definir_auteur', 'ajouter_a_galerie', 'ajouter_a_collection', 'ajouter_un_tag']
     filter_horizontal = ('galeries', 'collections', 'tags')
 
     list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'taille_mo')
-    list_filter     = ('appareil', ('date_prise_de_vue', DateTimeRangeFilter))
+    list_filter     = ('appareil', ('date_prise_de_vue', FiltrePlageDateHeure))
     search_fields   = ('nom_fichier', 'titre', 'description', 'appareil', 'objectif')
 
     PARAMS_FILTRE_DATE = (
@@ -102,7 +202,11 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
                     request.path,
                 ),
             )
-        elif not request.GET and self.CLE_SESSION_FILTRE_DATE in request.session:
+        elif (
+            request.method == 'GET'
+            and not request.GET
+            and self.CLE_SESSION_FILTRE_DATE in request.session
+        ):
             query_string = urlencode(request.session[self.CLE_SESSION_FILTRE_DATE])
             messages.info(
                 request,
@@ -115,6 +219,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             return HttpResponseRedirect(f'{request.path}?{query_string}')
 
         return super().changelist_view(request, extra_context=extra_context)
+
     readonly_fields = (
         'vignette', 'nom_fichier', 'taille_mo', 'largeur', 'hauteur',
         'appareil', 'objectif', 'ouverture', 'vitesse', 'iso',
@@ -170,6 +275,11 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         request.session['photos_ids'] = list(queryset.values_list('pk', flat=True))
         return HttpResponseRedirect('ajouter-collection/')
 
+    @admin.action(description="Ajouter un tag")
+    def ajouter_un_tag(self, request, queryset):
+        request.session['photos_ids'] = list(queryset.values_list('pk', flat=True))
+        return HttpResponseRedirect('ajouter-tag/')
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -177,6 +287,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             path('definir-auteur/', self.admin_site.admin_view(self.definir_auteur_view), name='galeries_photo_definir_auteur'),
             path('ajouter-galerie/', self.admin_site.admin_view(self.ajouter_a_galerie_view), name='galeries_photo_ajouter_galerie'),
             path('ajouter-collection/', self.admin_site.admin_view(self.ajouter_a_collection_view), name='galeries_photo_ajouter_collection'),
+            path('ajouter-tag/', self.admin_site.admin_view(self.ajouter_un_tag_view), name='galeries_photo_ajouter_tag'),
         ]
         return custom_urls + urls
 
@@ -254,6 +365,45 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             'opts': self.model._meta,
         }
         return render(request, 'admin/galeries/photo/ajouter_collection.html', context)
+
+    def ajouter_un_tag_view(self, request):
+        ids = request.session.get('photos_ids', [])
+        queryset = Photo.objects.filter(pk__in=ids)
+
+        if request.method == 'POST':
+            form = AjouterTagForm(request.POST)
+            if form.is_valid():
+                tags = list(form.cleaned_data['tags'])
+                noms_nouveaux_tags = [
+                    nom.strip()
+                    for nom in form.cleaned_data['nouveaux_tags'].split(',')
+                    if nom.strip()
+                ]
+                for nom in noms_nouveaux_tags:
+                    tag, _cree = Tag.objects.get_or_create(nom=nom)
+                    tags.append(tag)
+
+                for tag in tags:
+                    tag.photos.add(*queryset)
+
+                del request.session['photos_ids']
+                noms_tags = ", ".join(f"« {tag.nom} »" for tag in tags)
+                messages.success(
+                    request,
+                    f"{queryset.count()} photo(s) taguée(s) avec {noms_tags}.",
+                )
+                return HttpResponseRedirect('../')
+        else:
+            form = AjouterTagForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': "Ajouter un tag",
+            'form': form,
+            'queryset': queryset,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/galeries/photo/ajouter_tag.html', context)
 
     def batch_upload_view(self, request):
         if not self.has_add_permission(request):
