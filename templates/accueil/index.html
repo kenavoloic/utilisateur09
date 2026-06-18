@@ -58,7 +58,7 @@
       <div class="gallery-card-body">
         <div>
           <div class="gallery-card-title">{{ galerie.nom }}</div>
-          <div class="gallery-card-meta">{% with c_count=galerie.collections.count p_count=galerie.get_total_photos %}{{ c_count }} collection{% if c_count > 1 %}s{% endif %} · {{ p_count }} photo{% if p_count > 1 %}s{% endif %}{% endwith %}</div>
+          <div class="gallery-card-meta">{% with c_count=galerie.collections.count p_count=galerie.get_total_photos %}{% if c_count > 0 %}{{ c_count }} collection{% if c_count > 1 %}s{% endif %} · {% endif %}{{ p_count }} photo{% if p_count > 1 %}s{% endif %}{% endwith %}</div>
         </div>
         <span class="gallery-card-arrow">↗</span>
       </div>
