@@ -95,9 +95,10 @@ class Collection(models.Model):
 
     masonry_layout_manuel = models.BooleanField(default=True, verbose_name="Masonry manuel", help_text="Ordre d'affichage défini par le photographe.",)
     ordre_affichage = models.PositiveIntegerField(default=0)
-        
+
     class Meta:
         unique_together = ('galerie', 'slug')
+        ordering = ["ordre_affichage", "nom"]
 
     def __str__(self):
         return self.nom

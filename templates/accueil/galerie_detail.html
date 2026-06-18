@@ -37,14 +37,36 @@
   {% endif %}
 </header>
 
+{% if photos_directes %}
 <section class="photos-section">
   <p class="section-eyebrow reveal">Photos</p>
   <div class="photos-grid adaptive" data-ordre-manuel="{{ galerie.masonry_layout_manuel|yesno:'true,false' }}">
-    {% for photo in photos %}
+    {% for photo in photos_directes %}
       <div class="photo-item reveal">
         {% if photo.image %}
           <a class="photo-link" href="{{ photo.image.url }}">
             <img src="{{ photo.image.url }}" alt="{{ photo.titre|default:galerie.nom }}" />
+          </a>
+        {% else %}
+          <div class="photo-placeholder">
+            <span>📷</span>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% for collection in collections %}
+<section class="photos-section">
+  <p class="section-eyebrow reveal">{{ collection.nom }}</p>
+  <div class="photos-grid adaptive" data-ordre-manuel="{{ collection.masonry_layout_manuel|yesno:'true,false' }}">
+    {% for photo in collection.photos.all %}
+      <div class="photo-item reveal">
+        {% if photo.image %}
+          <a class="photo-link" href="{{ photo.image.url }}">
+            <img src="{{ photo.image.url }}" alt="{{ photo.titre|default:collection.nom }}" />
           </a>
         {% else %}
           <div class="photo-placeholder">
@@ -57,5 +79,10 @@
     {% endfor %}
   </div>
 </section>
+{% empty %}
+  {% if not photos_directes %}
+    <p class="empty-message">Aucune photo disponible pour le moment.</p>
+  {% endif %}
+{% endfor %}
 
 {% endblock %}

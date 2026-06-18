@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import render
 
@@ -12,9 +12,13 @@ def galerie_detail(request, galerie_slug):
     except Galerie.DoesNotExist:
         raise Http404("Galerie non trouvée")
 
-    photos = Photo.objects.filter(
-        Q(galeries=galerie) | Q(collections__galerie=galerie)
-    ).distinct().order_by("id")
+    collections = galerie.collections.order_by("ordre_affichage", "nom").prefetch_related(
+        Prefetch("photos", queryset=Photo.objects.order_by("id"))
+    )
+
+    photos_directes = (
+        galerie.photos.exclude(collections__galerie=galerie).distinct().order_by("id")
+    )
 
     autres_galeries = (
         Galerie.objects.filter(est_publique=True)
@@ -24,7 +28,8 @@ def galerie_detail(request, galerie_slug):
 
     context = {
         "galerie": galerie,
-        "photos": photos,
+        "collections": collections,
+        "photos_directes": photos_directes,
         "galeries": autres_galeries,
     }
 

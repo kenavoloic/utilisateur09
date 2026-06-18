@@ -1,5 +1,4 @@
 from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin
-from adminsortable2.admin import SortableAdminMixin
 from django import forms
 from django.contrib import admin, messages
 from django.db.models import Count
@@ -242,7 +241,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         return render(request, 'admin/galeries/photo/batch_upload.html', context)
 
 
-class CollectionInline(admin.TabularInline):
+class CollectionInline(SortableInlineAdminMixin, admin.TabularInline):
     model = Collection
     extra = 1
     fields = ('nom',)
@@ -271,7 +270,7 @@ class GalerieAdmin(RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin
 
 
 @admin.register(Collection)
-class CollectionAdmin(RolesContributeursMixin, admin.ModelAdmin):
+class CollectionAdmin(RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin):
     list_display = ('nom', 'slug', 'galerie', 'masonry_layout_manuel', 'nombre_photos_admin')
     list_filter = ('galerie',)
     readonly_fields = ('slug',)
