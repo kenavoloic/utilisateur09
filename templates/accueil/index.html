@@ -12,7 +12,7 @@
 <section class="hero" id="hero">
   <div class="hero-image-side">
     {% if hero_image %}
-      <img src="{{ hero_image.url }}" alt="" class="hero-image" />
+      <img src="{{ hero_image.url }}" alt="" class="hero-image" loading="eager" fetchpriority="high" />
     {% else %}
       <div class="hero-image-placeholder"></div>
     {% endif %}
@@ -44,11 +44,11 @@
        href="{% url 'galeries:galerie_detail' galerie_slug=galerie.slug %}">
       <div class="gallery-card-image-wrap">
         {% if galerie.image_couverture %}
-          <img src="{{ galerie.image_couverture.url }}" alt="{{ galerie.nom }}" class="gallery-card-image" />
+          <img src="{{ galerie.image_couverture.url }}" alt="{{ galerie.nom }}" class="gallery-card-image" loading="lazy" />
         {% else %}
           {% with photo_couverture=galerie.get_photo_couverture %}
             {% if photo_couverture and photo_couverture.image %}
-              <img src="{{ photo_couverture.image.url }}" alt="{{ galerie.nom }}" class="gallery-card-image" />
+              <img src="{{ photo_couverture.image.url }}" alt="{{ galerie.nom }}" class="gallery-card-image" loading="lazy" />
             {% else %}
               <div class="gallery-card-image-placeholder"></div>
             {% endif %}
@@ -113,37 +113,4 @@
 
 {% block extra_js %}
 <script src="{% static 'js/modal.js' %}"></script>
-{% endblock %}
-
-{% block modals %}
-<!-- MODAL ACCÈS PRIVÉ -->
-<div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal()" aria-label="Fermer">✕</button>
-    <div id="modal-form-content">
-      <p class="modal-eyebrow">Accès restreint</p>
-      <h2 class="modal-title" id="modal-title">{{ config.modal_titre }}</h2>
-      <p class="modal-subtitle">{{ config.modal_sous_titre }}</p>
-      <form id="private-form" onsubmit="handleSubmit(event)">
-        {% csrf_token %}
-        <div class="form-field">
-          <label class="form-label" for="email-input">Votre email</label>
-          <input class="form-input" id="email-input" type="email" placeholder="nom@exemple.com" autocomplete="email" />
-          <p class="form-error" id="email-error">Veuillez saisir un email valide.</p>
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="code-input">Code d'accès</label>
-          <input class="form-input" id="code-input" type="text" placeholder="{{ modal_placeholder_code }}" autocomplete="off" maxlength="20" style="letter-spacing:0.15em; text-transform:uppercase;" />
-          <p class="form-error" id="code-error">Ce code est invalide. Vérifiez votre message.</p>
-        </div>
-        <button type="submit" class="btn-primary btn-full">{{ config.modal_btn_acceder }}</button>
-      </form>
-    </div>
-    <div class="form-success" id="modal-success" style="display:none;">
-      <span class="form-success-icon">✦</span>
-      <h3>Accès accordé</h3>
-      <p>Votre galerie privée est en cours de chargement…</p>
-    </div>
-  </div>
-</div>
 {% endblock %}

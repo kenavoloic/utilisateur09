@@ -6,6 +6,12 @@
   <title>{% block title %}{{ config.titre_complet }}{% endblock %}</title>
   <meta name="description" content="{% block description %}{{ config.description_site }}{% endblock %}" />
 
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="{{ request.build_absolute_uri }}" />
+  <meta property="og:title" content="{% block og_title %}{{ config.titre_complet }}{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}{{ config.description_site }}{% endblock %}" />
+  {% block og_image %}{% if config.hero_image %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ config.hero_image.url }}" />{% endif %}{% endblock %}
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
