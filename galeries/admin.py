@@ -10,7 +10,7 @@ from django.forms.widgets import ClearableFileInput
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import path, reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.timezone import make_aware
 from django.utils.translation import gettext_lazy as _
 from rangefilter.filters import AdminSplitDateTime, DateTimeRangeFilter
@@ -255,7 +255,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
     readonly_fields = (
         'vignette', 'nom_fichier', 'taille_mo', 'largeur', 'hauteur',
         'appareil', 'objectif', 'ouverture', 'vitesse', 'iso',
-        'date_prise_de_vue', 'latitude', 'longitude',
+        'date_prise_de_vue', 'latitude', 'longitude', 'tags_affiches',
     )
 
     fieldsets = (
@@ -263,7 +263,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             "fields": ('vignette', 'image', 'nom_fichier', 'taille_mo', 'largeur', 'hauteur', 'auteur_nom', 'auteur_prenom', 'auteur_email'),
         }),
         ("Contenu", {
-            "fields": ('titre', 'description', 'est_couverture'),
+            "fields": ('titre', 'description', 'est_couverture', 'tags_affiches'),
         }),
         ("Galeries", {
             "fields": ('galeries', 'collections', 'tags'),
@@ -286,6 +286,17 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         if obj.taille is None:
             return '-'
         return f"{round(obj.taille / (1024 * 1024), 2)} Mo"
+
+    @admin.display(description='Tags')
+    def tags_affiches(self, obj):
+        tags = obj.tags.all() if obj.pk else []
+        if not tags:
+            return '—'
+        return format_html_join(
+            ' ',
+            '<span style="background:#eee; border-radius:10px; padding:2px 8px; font-size:12px;">{}</span>',
+            ((tag.nom,) for tag in tags),
+        )
 
     @admin.display(description='Vignette')
     def vignette(self, obj):
