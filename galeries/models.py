@@ -42,6 +42,7 @@ class Galerie(models.Model):
     class Meta:
         verbose_name = "Galerie"
         verbose_name_plural = "Galeries"
+        ordering = ["ordre_affichage", "nom"]
 
     def __str__(self):
         return self.nom

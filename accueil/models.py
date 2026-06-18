@@ -30,8 +30,8 @@ class AccueilConfig(models.Model):
     modifie_le = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Configuration de la page d'accueil"
-        verbose_name_plural = "Configuration de la page d'accueil"
+        verbose_name = "Configuration"
+        verbose_name_plural = "Configurations"
 
     def __str__(self):
         return f"Configuration accueil - {self.titre_site}"

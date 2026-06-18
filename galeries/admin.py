@@ -1,3 +1,5 @@
+from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin
+from adminsortable2.admin import SortableAdminMixin
 from django import forms
 from django.contrib import admin, messages
 from django.db.models import Count
@@ -247,7 +249,7 @@ class CollectionInline(admin.TabularInline):
 
 
 @admin.register(Galerie)
-class GalerieAdmin(RolesContributeursMixin, admin.ModelAdmin):
+class GalerieAdmin(RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin):
     list_display = ('nom', 'slug', 'est_publique', 'masonry_layout_manuel', 'nombre_collections_admin', 'nombre_total_photos_admin')
     list_filter = ('est_publique',)
     search_fields = ('nom', 'description')
