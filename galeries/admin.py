@@ -543,6 +543,15 @@ class CollectionAdmin(OrdonnerPhotosAdminMixin, RolesContributeursMixin, Sortabl
 
 @admin.register(Tag)
 class TagAdmin(RolesContributeursMixin, admin.ModelAdmin):
-    list_display = ('nom', 'slug')
+    list_display = ('nom', 'slug', 'nombre_photos_admin')
     search_fields = ('nom',)
     readonly_fields = ('slug',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            nombre_photos_annote=Count('photos', distinct=True),
+        )
+
+    @admin.display(description='Photos', ordering='nombre_photos_annote')
+    def nombre_photos_admin(self, obj):
+        return obj.nombre_photos_annote
