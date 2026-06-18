@@ -6,6 +6,7 @@ import pyexiv2
 from PIL import Image as PILImage
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.utils.text import slugify
@@ -231,6 +232,21 @@ class Photo(models.Model):
         blank=True,
         related_name='photos',
     )
+
+    def clean(self):
+        super().clean()
+        if self.image and not self.image._committed:
+            hash_calcule = calculer_hash_fichier(self.image)
+            doublon = (
+                Photo.objects.filter(hash_fichier=hash_calcule)
+                .exclude(pk=self.pk)
+                .first()
+            )
+            if doublon:
+                raise ValidationError(
+                    f"Cette image est déjà utilisée par la photo #{doublon.pk} "
+                    f"« {doublon.titre or doublon.nom_fichier} »."
+                )
 
     def save(self, *args, **kwargs):
         is_new = not self.pk

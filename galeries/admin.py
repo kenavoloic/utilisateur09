@@ -235,6 +235,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         }),
         ("Galeries", {
             "fields": ('galeries', 'collections', 'tags'),
+            "classes": ('collapse',),            
         }),
         ("Prise de vue", {
             "fields": ('date_prise_de_vue', 'appareil', 'objectif', 'ouverture', 'vitesse', 'iso'),
