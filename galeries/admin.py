@@ -186,6 +186,21 @@ class AttributionFilter(admin.SimpleListFilter):
         return queryset
 
 
+class FocaleFilter(admin.SimpleListFilter):
+    title = "Focale"
+    parameter_name = "focale"
+
+    def lookups(self, request, model_admin):
+        tags_focale = Tag.objects.filter(nom__regex=r'^[0-9]+mm$')
+        focales = sorted(tags_focale, key=lambda tag: int(tag.nom.removesuffix('mm')))
+        return [(tag.slug, tag.nom) for tag in focales]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(tags__slug=self.value())
+        return queryset
+
+
 @admin.register(Photo)
 class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
 
@@ -195,7 +210,7 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
     filter_horizontal = ('galeries', 'collections', 'tags')
 
     list_display    = ('vignette', 'nom_fichier', 'appareil', 'date_prise_de_vue', 'taille_mo')
-    list_filter     = (AttributionFilter, 'appareil', ('date_prise_de_vue', FiltrePlageDateHeure), ('date_chargement', DateRangeFilter))
+    list_filter     = (AttributionFilter, 'appareil', FocaleFilter, ('date_prise_de_vue', FiltrePlageDateHeure), ('date_chargement', DateRangeFilter))
     search_fields   = ('nom_fichier', 'titre', 'description', 'appareil', 'objectif')
 
     PARAMS_FILTRE_DATE = (

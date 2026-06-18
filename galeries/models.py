@@ -307,6 +307,16 @@ class Photo(models.Model):
             except (ValueError, ZeroDivisionError):
                 pass
 
+        focale = exif.get('Exif.Photo.FocalLength')
+        if focale:
+            try:
+                tag_focale, _ = Tag.objects.get_or_create(
+                    nom=f"{round(float(Fraction(focale)))}mm"
+                )
+                self.tags.add(tag_focale)
+            except (ValueError, ZeroDivisionError):
+                pass
+
         self.vitesse = exif.get('Exif.Photo.ExposureTime', '')
 
         iso = exif.get('Exif.Photo.ISOSpeedRatings')
