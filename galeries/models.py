@@ -1,5 +1,6 @@
 import datetime
 from fractions import Fraction
+import hashlib
 import os
 import pyexiv2
 from PIL import Image as PILImage
@@ -25,6 +26,17 @@ class PhotoStorage(FileSystemStorage):
 
 def photo_upload_path(instance, filename):
     return f'photos/{filename}'
+
+
+def calculer_hash_fichier(fichier):
+    """Hash SHA-256 du contenu d'un fichier (UploadedFile ou FieldFile),
+    utilisé pour repérer les photos déjà présentes en base avant import."""
+    fichier.seek(0)
+    hash_obj = hashlib.sha256()
+    for bloc in fichier.chunks():
+        hash_obj.update(bloc)
+    fichier.seek(0)
+    return hash_obj.hexdigest()
 
 
 def ordonner_photos(photos, ordre_photos):
@@ -173,6 +185,7 @@ class Photo(models.Model):
 
     image        = models.ImageField(upload_to=photo_upload_path, storage=PhotoStorage())
     nom_fichier  = models.CharField(max_length=255, editable=False)
+    hash_fichier = models.CharField(max_length=64, blank=True, editable=False, db_index=True)
     taille       = models.PositiveIntegerField(null=True, help_text="octets")
     largeur      = models.PositiveIntegerField(null=True, help_text="pixels")
     hauteur      = models.PositiveIntegerField(null=True, help_text="pixels")
@@ -232,7 +245,7 @@ class Photo(models.Model):
         if image_changee:
             self._extraire_metadonnees()
             super().save(update_fields=[
-                'nom_fichier', 'taille', 'largeur', 'hauteur',
+                'nom_fichier', 'hash_fichier', 'taille', 'largeur', 'hauteur',
                 'titre', 'description', 'date_prise_de_vue',
                 'appareil', 'objectif', 'ouverture', 'vitesse', 'iso',
                 'latitude', 'longitude',
@@ -248,6 +261,7 @@ class Photo(models.Model):
         chemin = self.image.path
 
         self.nom_fichier = os.path.basename(chemin)
+        self.hash_fichier = calculer_hash_fichier(self.image)
         self.taille = os.path.getsize(chemin)
 
         try:

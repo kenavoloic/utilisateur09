@@ -8,7 +8,7 @@ from django.shortcuts import render
 from django.urls import path, reverse
 from django.utils.html import format_html
 
-from .models import Photo, Galerie, Collection, Tag, ordonner_photos
+from .models import Photo, Galerie, Collection, Tag, calculer_hash_fichier, ordonner_photos
 from utilisateurs.models import Utilisateur
 
 # création d'un mixin pour éviter les répétitions de code
@@ -223,11 +223,20 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
             if form.is_valid():
                 fichiers = request.FILES.getlist('images')
                 nb_succes = 0
+                nb_doublons = 0
                 for fichier in fichiers:
+                    if Photo.objects.filter(
+                        hash_fichier=calculer_hash_fichier(fichier)
+                    ).exists():
+                        nb_doublons += 1
+                        continue
                     photo = Photo()
                     photo.image.save(fichier.name, fichier, save=True)
                     nb_succes += 1
-                messages.success(request, f"{nb_succes} photo(s) uploadée(s) avec succès.")
+                message = f"{nb_succes} photo(s) uploadée(s) avec succès."
+                if nb_doublons:
+                    message += f" {nb_doublons} photo(s) déjà existante(s) ignorée(s)."
+                messages.success(request, message)
                 return HttpResponseRedirect('../')
         else:
             form = BatchUploadForm()
