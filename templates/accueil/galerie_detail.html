@@ -62,7 +62,7 @@
 <section class="photos-section">
   <p class="section-eyebrow reveal">{{ collection.nom }}</p>
   <div class="photos-grid adaptive" data-ordre-manuel="{{ collection.masonry_layout_manuel|yesno:'true,false' }}">
-    {% for photo in collection.photos.all %}
+    {% for photo in collection.photos_ordonnees %}
       <div class="photo-item reveal">
         {% if photo.image %}
           <a class="photo-link" href="{{ photo.image.url }}">

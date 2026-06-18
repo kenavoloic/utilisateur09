@@ -5,10 +5,10 @@ from django.db.models import Count
 from django.forms.widgets import ClearableFileInput
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
-from django.urls import path
+from django.urls import path, reverse
 from django.utils.html import format_html
 
-from .models import Photo, Galerie, Collection, Tag
+from .models import Photo, Galerie, Collection, Tag, ordonner_photos
 from utilisateurs.models import Utilisateur
 
 # création d'un mixin pour éviter les répétitions de code
@@ -241,6 +241,55 @@ class PhotoAdmin(RolesContributeursMixin, admin.ModelAdmin):
         return render(request, 'admin/galeries/photo/batch_upload.html', context)
 
 
+class OrdonnerPhotosAdminMixin:
+    """Vue d'administration pour réordonner par glisser-déposer les photos
+    d'une galerie ou d'une collection, en réécrivant le tuple `ordre_photos`."""
+
+    def get_photos_a_ordonner(self, obj):
+        raise NotImplementedError
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:object_id>/ordonner-photos/',
+                self.admin_site.admin_view(self.ordonner_photos_view),
+                name=f'{self.model._meta.app_label}_{self.model._meta.model_name}_ordonner_photos',
+            ),
+        ]
+        return custom_urls + urls
+
+    def ordonner_photos_view(self, request, object_id):
+        from django.shortcuts import get_object_or_404
+
+        obj = get_object_or_404(self.model, pk=object_id)
+        photos = ordonner_photos(self.get_photos_a_ordonner(obj), obj.ordre_photos)
+
+        if request.method == 'POST':
+            ordre = [int(pk) for pk in request.POST.getlist('ordre')]
+            obj.ordre_photos = ordre
+            obj.save(update_fields=['ordre_photos'])
+            messages.success(request, "Ordre des photos mis à jour.")
+            return HttpResponseRedirect(request.path)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': f"Ordre des photos — {obj}",
+            'objet': obj,
+            'photos': photos,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/galeries/ordonner_photos.html', context)
+
+    @admin.display(description='Photos')
+    def lien_ordre_photos(self, obj):
+        url = reverse(
+            f'admin:{self.model._meta.app_label}_{self.model._meta.model_name}_ordonner_photos',
+            args=[obj.pk],
+        )
+        return format_html('<a href="{}">🔄 Ordonner les photos</a>', url)
+
+
 class CollectionInline(SortableInlineAdminMixin, admin.TabularInline):
     model = Collection
     extra = 1
@@ -248,8 +297,8 @@ class CollectionInline(SortableInlineAdminMixin, admin.TabularInline):
 
 
 @admin.register(Galerie)
-class GalerieAdmin(RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin):
-    list_display = ('nom', 'slug', 'est_publique', 'masonry_layout_manuel', 'nombre_collections_admin', 'nombre_total_photos_admin')
+class GalerieAdmin(OrdonnerPhotosAdminMixin, RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin):
+    list_display = ('nom', 'slug', 'est_publique', 'masonry_layout_manuel', 'nombre_collections_admin', 'nombre_total_photos_admin', 'lien_ordre_photos')
     list_filter = ('est_publique',)
     search_fields = ('nom', 'description')
     readonly_fields = ('slug',)
@@ -268,10 +317,13 @@ class GalerieAdmin(RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin
     def nombre_total_photos_admin(self, obj):
         return obj.nombre_total_photos()
 
+    def get_photos_a_ordonner(self, obj):
+        return obj.photos.exclude(collections__galerie=obj).distinct()
+
 
 @admin.register(Collection)
-class CollectionAdmin(RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin):
-    list_display = ('nom', 'slug', 'galerie', 'masonry_layout_manuel', 'nombre_photos_admin')
+class CollectionAdmin(OrdonnerPhotosAdminMixin, RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin):
+    list_display = ('nom', 'slug', 'galerie', 'masonry_layout_manuel', 'nombre_photos_admin', 'lien_ordre_photos')
     list_filter = ('galerie',)
     readonly_fields = ('slug',)
 
@@ -283,6 +335,9 @@ class CollectionAdmin(RolesContributeursMixin, SortableAdminMixin, admin.ModelAd
     @admin.display(description='Photos', ordering='nombre_photos_annote')
     def nombre_photos_admin(self, obj):
         return obj.nombre_photos_annote
+
+    def get_photos_a_ordonner(self, obj):
+        return obj.photos.all()
 
 
 @admin.register(Tag)

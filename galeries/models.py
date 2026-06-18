@@ -27,6 +27,17 @@ def photo_upload_path(instance, filename):
     return f'photos/{filename}'
 
 
+def ordonner_photos(photos, ordre_photos):
+    """Trie une liste/queryset de photos selon le tuple ordre_photos (liste de pk,
+    dans l'ordre d'ajout ou tel que réorganisé par le photographe). Les photos
+    absentes du tuple (cas rare, ex. incohérence de données) sont placées à la fin,
+    triées par id."""
+    photos = list(photos)
+    position = {pk: i for i, pk in enumerate(ordre_photos)}
+    photos.sort(key=lambda photo: (position.get(photo.pk, len(ordre_photos)), photo.pk))
+    return photos
+
+
 class Galerie(models.Model):
     nom = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True)
@@ -36,6 +47,10 @@ class Galerie(models.Model):
     ordre_affichage = models.PositiveIntegerField(default=0)
 
     masonry_layout_manuel = models.BooleanField(default=True, verbose_name="Masonry manuel", help_text="Ordre d'affichage défini par le photographe.",)
+    # tuple (liste de pk de Photo) déterminant l'ordre d'affichage des photos
+    # directement rattachées à la galerie ; initialisé dans l'ordre d'ajout,
+    # puis réécrit par le photographe lors d'un réordonnancement manuel
+    ordre_photos = models.JSONField(default=list, blank=True)
     #created_at = models.DateTimeField(auto_now_add=True)
     #updated_at = models.DateTimeField(auto_now=True)
 
@@ -95,6 +110,10 @@ class Collection(models.Model):
 
     masonry_layout_manuel = models.BooleanField(default=True, verbose_name="Masonry manuel", help_text="Ordre d'affichage défini par le photographe.",)
     ordre_affichage = models.PositiveIntegerField(default=0)
+    # tuple (liste de pk de Photo) déterminant l'ordre d'affichage des photos
+    # de la collection ; initialisé dans l'ordre d'ajout, puis réécrit par le
+    # photographe lors d'un réordonnancement manuel
+    ordre_photos = models.JSONField(default=list, blank=True)
 
     class Meta:
         unique_together = ('galerie', 'slug')
