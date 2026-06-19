@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.views.decorators.cache import never_cache
 
 from .models import Collection, Galerie, VisiteurGalerie, ordonner_photos
 
@@ -67,12 +68,17 @@ def collection_detail(request, galerie_slug, collection_slug):
     return render(request, "accueil/collection_detail.html", context)
 
 
+@never_cache
 def galerie_privee(request, galerie_slug):
     """Vue pour afficher une galerie privée à un visiteur authentifié.
 
     L'authentification se fait par token, transmis soit en session (suite à la
     saisie du code d'accès sur l'accueil), soit en paramètre d'URL (lien direct
     envoyé par email), ce qui permet de retrouver le visiteur sans relire le code.
+
+    @never_cache : sans ça, le bouton précédent du navigateur peut réafficher
+    une version mise en cache de la page après déconnexion, montrant les
+    photos privées sans revérifier la session auprès du serveur.
     """
     token_url = request.GET.get("token")
     token = token_url or request.session.get("visiteur_token")
