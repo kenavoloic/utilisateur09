@@ -302,8 +302,15 @@ class Photo(models.Model):
             with pyexiv2.Image(chemin) as img:
                 exif = img.read_exif()
                 iptc = img.read_iptc()
+                xmp = img.read_xmp()
         except Exception:
             return
+
+        for mot_cle in xmp.get('Xmp.dc.subject', []):
+            mot_cle = mot_cle.strip()
+            if mot_cle:
+                tag, _ = Tag.objects.get_or_create(nom=mot_cle)
+                self.tags.add(tag)
 
         marque = exif.get('Exif.Image.Make', '')
         modele = exif.get('Exif.Image.Model', '')
