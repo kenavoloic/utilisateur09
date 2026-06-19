@@ -592,7 +592,7 @@ class CollectionInline(SortableInlineAdminMixin, admin.TabularInline):
 
 @admin.register(Galerie)
 class GalerieAdmin(OrdonnerPhotosAdminMixin, RolesContributeursMixin, SortableAdminMixin, admin.ModelAdmin):
-    list_display = ('nom', 'slug', 'est_publique', 'masonry_layout_manuel', 'nombre_collections_admin', 'nombre_total_photos_admin', 'lien_ordre_photos')
+    list_display = ('nom', 'slug', 'est_publique', 'masonry_layout_manuel', 'nombre_collections_admin', 'nombre_total_photos_admin', 'nombre_clients_admin', 'lien_ordre_photos')
     list_filter = ('est_publique',)
     search_fields = ('nom', 'description')
     readonly_fields = ('slug',)
@@ -601,6 +601,7 @@ class GalerieAdmin(OrdonnerPhotosAdminMixin, RolesContributeursMixin, SortableAd
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
             nombre_collections_annote=Count('collections', distinct=True),
+            nombre_clients_annote=Count('acces_prives__visiteurs', distinct=True),
         )
 
     @admin.display(description='Collections', ordering='nombre_collections_annote')
@@ -610,6 +611,13 @@ class GalerieAdmin(OrdonnerPhotosAdminMixin, RolesContributeursMixin, SortableAd
     @admin.display(description='Photos (total)')
     def nombre_total_photos_admin(self, obj):
         return obj.nombre_total_photos()
+
+    @admin.display(description='Clients autorisés', ordering='nombre_clients_annote')
+    def nombre_clients_admin(self, obj):
+        if not obj.nombre_clients_annote:
+            return obj.nombre_clients_annote
+        url = reverse('admin:galeries_visiteurgalerie_changelist') + f'?acces_galerie__galerie__id__exact={obj.pk}'
+        return format_html('<a href="{}">{}</a>', url, obj.nombre_clients_annote)
 
     def get_photos_a_ordonner(self, obj):
         return obj.photos.exclude(collections__galerie=obj).distinct()
