@@ -6,8 +6,12 @@ from django.views.decorators.cache import never_cache
 from .models import Collection, Galerie, VisiteurGalerie, ordonner_photos
 
 
+@never_cache
 def galerie_detail(request, galerie_slug):
-    """Vue pour afficher une galerie spécifique."""
+    """Vue pour afficher une galerie spécifique.
+
+    @never_cache : peut afficher le bandeau "Mode privé" d'une session
+    active (cf. galerie_privee plus bas pour le détail du risque)."""
     try:
         galerie = Galerie.objects.get(slug=galerie_slug, est_publique=True)
     except Galerie.DoesNotExist:
@@ -36,8 +40,10 @@ def galerie_detail(request, galerie_slug):
     return render(request, "accueil/galerie_detail.html", context)
 
 
+@never_cache
 def collection_detail(request, galerie_slug, collection_slug):
-    """Vue pour afficher une collection spécifique d'une galerie."""
+    """Vue pour afficher une collection spécifique d'une galerie (cf.
+    galerie_detail : même raison pour @never_cache)."""
     try:
         galerie = Galerie.objects.get(slug=galerie_slug, est_publique=True)
     except Galerie.DoesNotExist:

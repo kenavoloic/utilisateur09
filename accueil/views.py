@@ -19,14 +19,22 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.views.decorators.cache import never_cache
 
 from galeries.models import AccesGalerie, Galerie, VisiteurGalerie
 
 from .forms import ContactForm
 
 
+@never_cache
 def index(request):
-    """Vue pour la page d'accueil du studio photographique."""
+    """Vue pour la page d'accueil du studio photographique.
+
+    @never_cache : cette page peut afficher le bandeau "Mode privé" d'une
+    session active (via le context processor visiteur_prive) ; sans ça, le
+    bouton précédent du navigateur pourrait réafficher après déconnexion
+    une version mise en cache montrant encore ce bandeau.
+    """
 
     # Récupérer la configuration de l'accueil
     from .models import AccueilConfig, SectionAccueil
@@ -123,8 +131,10 @@ def index(request):
     return render(request, "accueil/index.html", context)
 
 
+@never_cache
 def contact(request):
-    """Vue pour le formulaire de contact."""
+    """Vue pour le formulaire de contact (cf. index : peut afficher le
+    bandeau "Mode privé", d'où @never_cache)."""
 
     # Récupérer la configuration de l'accueil
     from .models import AccueilConfig
