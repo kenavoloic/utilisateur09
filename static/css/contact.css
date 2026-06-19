@@ -10,35 +10,8 @@
   margin-bottom: 4rem;
 }
 
-/* Messages Django */
-.messages {
-  margin-bottom: 2rem;
-}
-
-.message {
-  padding: 1rem 1.5rem;
-  border-radius: var(--radius-md);
-  margin-bottom: 1rem;
-  font-weight: 500;
-}
-
-.message-success {
-  background: #10b981;
-  color: white;
-  border-left: 0.25rem solid #059669;
-}
-
-.message-error {
-  background: #ef4444;
-  color: white;
-  border-left: 0.25rem solid #dc2626;
-}
-
-.message-info {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-left: 0.25rem solid var(--color-accent);
-}
+/* Les messages Django sont stylés globalement dans base.css, car ils
+   doivent s'afficher sur toutes les pages, pas seulement le contact. */
 
 /* Grille contact */
 .contact-grid {
