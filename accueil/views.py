@@ -114,7 +114,6 @@ def index(request):
     )
 
     context = {
-        "config": config,
         "galeries": galeries,
         "total_collections": galeries.count(),
         "hero_image": config.hero_image,
