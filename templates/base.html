@@ -43,6 +43,20 @@
     </div>
   </nav>
 
+  {% if visiteur_prive %}
+  <div class="private-status-badge">
+    <div class="private-badge-content">
+      <span class="private-badge-icon">🔒</span>
+      <span class="private-badge-text">Mode privé</span>
+      <span class="private-badge-separator">•</span>
+      <span class="private-badge-gallery">
+        <a href="{% url 'galeries:galerie_privee' galerie_slug=galerie_privee_session.slug %}">{{ galerie_privee_session.nom }}</a>
+      </span>
+      <button class="private-badge-close" onclick="window.location.href='{% url 'galeries:deconnexion_privee' %}'" title="Quitter le mode privé">×</button>
+    </div>
+  </div>
+  {% endif %}
+
   {% block content %}{% endblock %}
 
   <footer class="site-footer" id="contact">

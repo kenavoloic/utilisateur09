@@ -113,3 +113,11 @@ def galerie_privee(request, galerie_slug):
     }
 
     return render(request, "accueil/galerie_detail.html", context)
+
+
+def deconnexion_privee(request):
+    """Quitte le mode privé en effaçant la session du visiteur."""
+    request.session.pop("visiteur_token", None)
+    request.session.pop("acces_galerie_id", None)
+    messages.info(request, "Vous avez quitté le mode privé.")
+    return redirect("accueil:index")
