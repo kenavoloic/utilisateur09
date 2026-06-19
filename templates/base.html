@@ -55,6 +55,12 @@
       <button class="private-badge-close" onclick="window.location.href='{% url 'galeries:deconnexion_privee' %}'" title="Quitter le mode privé">×</button>
     </div>
   </div>
+  <script>
+    // Le badge est fixed (hors flux) : on pousse le contenu de sa hauteur
+    // réelle, mesurée plutôt que calculée, pour rester correct quelle que
+    // soit la longueur du nom de la galerie ou la largeur de l'écran.
+    document.body.style.paddingTop = document.querySelector('.private-status-badge').offsetHeight + 'px';
+  </script>
   {% endif %}
 
   {% block content %}{% endblock %}

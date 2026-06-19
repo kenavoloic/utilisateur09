@@ -88,13 +88,15 @@ body {
 .nav-logo span { color: var(--accent); }
 
 /* ---- BADGE MODE PRIVÉ (persistant sur tout le site) ----
-   En flux normal (position: sticky, pas fixed) avec margin-top pour
-   compenser la nav fixe : le contenu qui suit est alors automatiquement
-   repoussé par le navigateur, quelle que soit la page, sans calcul manuel. */
+   Fixed comme la nav (positionnement relatif au viewport, identique sur
+   tous les moteurs) : un sticky+margin-top sur le body donnait un résultat
+   différent entre Chromium et Firefox (propagation de l'overflow du body
+   vers la racine, gérée différemment selon les moteurs). Le contenu est
+   repoussé via JS (voir base.html), qui mesure la hauteur réelle du badge. */
 .private-status-badge {
-  position: sticky;
+  position: fixed;
   top: 4rem;
-  margin-top: 4rem;
+  left: 0; right: 0;
   z-index: 99;
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: white;
