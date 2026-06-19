@@ -1,0 +1,164 @@
+{# Surcharge locale de lucus/templates/admin/change_form.html (thème d'admin tiers) :
+   le gabarit d'origine charge deux fois le bundle JS standard de Django sur les
+   pages de fiche, ce qui fait s'exécuter admin/js/inlines.js deux fois et duplique
+   le lien "Ajouter" ainsi que les icônes ✕ des formsets en ligne (ex : Visiteurs
+   d'un Accès privé). Voir le bloc extrabody plus bas pour le détail du correctif. #}
+{% extends "admin/base.html" %}
+{% load i18n static admin_urls admin_modify %}
+
+{# ---------- TITLE ---------- #}
+{% block title %}
+  {% if add %}{% blocktrans with name=opts.verbose_name %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|striptags }}{% endif %} |
+  {{ site_title|default:'' }}
+{% endblock %}
+
+{# ---------- BODY CLASS ---------- #}
+{% block bodyclass %}{{ opts.app_label }}-{{ opts.model_name }} change-form-page lucus-fixed-submit{% endblock %}
+
+{# ---------- BREADCRUMBS (в нашем стиле, без имени приложения) ---------- #}
+{% block breadcrumbs %}
+  {% if not is_popup %}
+    <div class="breadcrumbs">
+      <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+      {% if has_view_permission %}
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+      {% else %}
+        &rsaquo; {{ opts.verbose_name_plural|capfirst }}
+      {% endif %}
+      &rsaquo;
+      {% if add %}
+        {% trans 'Add' %} {{ opts.verbose_name }}
+      {% else %}
+        {{ original|striptags }}
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}
+
+{# ---------- Убираем дублирующий текст перед h1 (оставляем только наш заголовок) ---------- #}
+{% block content_title %}{% endblock %}
+
+{# Stock Django change_form: forms.css + jsi18n + form media (FilteredSelectMultiple → SelectFilter2 needs gettext). #}
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/forms.css' %}">
+  {% for css in media.render_css %}
+  {{ css }}
+  {% endfor %}
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script src="{% url 'admin:jsi18n' %}"></script>
+  <script src="{% static 'lucus/js/lucus-inline-placeholders.js' %}" defer></script>
+  <script src="{% static 'lucus/js/lucus-sortable-inlines.js' %}" defer></script>
+  {% if adminform and add %}
+    <script type="text/javascript">
+      (function() {
+        window.addEventListener('load', function() {
+          var form = document.getElementById('{{ opts.model_name }}_form');
+          if (!form) return;
+          var first = form.querySelector('input, select, textarea');
+          if (first && typeof first.focus === 'function') {
+            first.focus();
+          }
+        });
+      })();
+    </script>
+  {% endif %}
+{% endblock %}
+
+{# ---------- CONTENT ---------- #}
+{% block content %}
+<!--------------- Change form: heading + primary column --------------->
+  <h1 class="lucus-change-form__title">{{ opts.verbose_name|capfirst }}</h1>
+  <div id="content-main" class="lucus-page__main">
+    {% if errors %}
+      <p class="errornote">
+        {% if errors|length == 1 %}
+          {% trans "Please correct the error below." %}
+        {% else %}
+          {% trans "Please correct the errors below." %}
+        {% endif %}
+      </p>
+      {{ adminform.form.non_field_errors }}
+    {% endif %}
+
+    <form {% if has_file_field %}enctype="multipart/form-data"{% endif %}
+          action="{{ form_url }}"
+          method="post"
+          id="{{ opts.model_name }}_form"
+          novalidate>
+      {% csrf_token %}
+
+      {% if is_popup %}
+        <input type="hidden" name="_popup" value="1">
+      {% endif %}
+      {% if to_field %}
+        <input type="hidden" name="_to_field" value="{{ to_field }}">
+      {% endif %}
+
+      {% block form_top %}{% endblock %}
+
+<!------------------------ Fieldsets + inlines ------------------------>
+      <div class="lucus-change-form__sections">
+        {# ---------- FIELDSETS ---------- #}
+        {% block field_sets %}
+          {% for fieldset in adminform %}
+            {% include "admin/includes/fieldset.html" %}
+          {% endfor %}
+        {% endblock %}
+
+        {% block after_field_sets %}{% endblock %}
+
+        {# ---------- INLINES ---------- #}
+        {% block inline_field_sets %}
+          {% for inline_admin_formset in inline_admin_formsets %}
+            {% include inline_admin_formset.opts.template %}
+          {% endfor %}
+        {% endblock %}
+
+        {% block after_related_objects %}{% endblock %}
+      </div>
+
+      {# ---------- SUBMIT ROW ---------- #}
+      {% block submit_buttons_bottom %}
+        {% submit_row %}
+      {% endblock %}
+
+      {# ---------- PREPOPULATED FIELDS JS ---------- #}
+      {% prepopulated_fields_js %}
+    </form>
+  </div>
+<!---------------- END CHANGE FORM -------------------------->
+{% endblock %}
+
+{# Form JS after jQuery (galleryfield, prose editor, CKEditor, …).
+   On change_form pages, `media.render_js` already provides the full,
+   correctly-ordered bundle (jquery, jquery.init, core, inlines.js,
+   actions.js, urlify.js, prepopulate.js, RelatedObjectLookups.js,
+   xregexp.js, plus any widget-specific JS). base.html's extrabody hardcodes
+   that same bundle for pages without form media (changelist, dashboard...).
+   Calling {{ block.super }} here would load every one of those scripts a
+   second time, causing admin/js/inlines.js to initialize twice — which
+   duplicates the inline "Add another" link and the per-row delete (✕)
+   icons. So we skip block.super and only add the lucus-only scripts that
+   aren't part of `media`. #}
+{% block extrabody %}
+<script src="{% static 'lucus/js/lucus-appearance.js' %}" defer></script>
+{% for js in media.render_js %}
+{{ js }}
+{% endfor %}
+{% if lucus_ui_clean_input_types %}
+<script src="{% static 'lucus/js/lucus-clean-input-types.js' %}" defer></script>
+{% endif %}
+{% if lucus_side_dashboard_nav %}
+<script src="{% static 'lucus/js/lucus-side-dashboard-nav.js' %}" defer></script>
+{% endif %}
+{% if has_permission and not is_popup %}
+<script src="{% static 'lucus/js/lucus-mobile-nav.js' %}" defer></script>
+{% endif %}
+<script src="{% static 'lucus/js/lucus-field-help.js' %}" defer></script>
+<script src="{% static 'lucus/js/lucus-changelist-pagehead-actions.js' %}" defer></script>
+<script src="{% static 'lucus/js/lucus-ui.js' %}" defer></script>
+{% endblock %}
