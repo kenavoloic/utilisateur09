@@ -11,6 +11,10 @@ class AccueilConfig(models.Model):
     titre_acces_prive = models.CharField(max_length=255, blank=True, null=True)
     description_acces_prive = models.TextField(blank=True, null=True)
 
+    # Menu de navigation
+    nav_galeries = models.CharField(max_length=50, default="Galeries", verbose_name="Lien menu galeries")
+    nav_acces_prive = models.CharField(max_length=50, default="Accès privé", verbose_name="Lien menu accès privé")
+
     # Bloc hero
     nom_site = models.CharField(max_length=100, default="Hors les Murs", verbose_name="Nom du site")
     titre_complet = models.CharField(max_length=200, default="Hors les Murs — Studio Photographique", verbose_name="Titre complet", help_text="Titre affiché dans l'onglet du navigateur")
