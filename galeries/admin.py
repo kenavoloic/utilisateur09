@@ -15,7 +15,16 @@ from django.utils.timezone import make_aware
 from django.utils.translation import gettext_lazy as _
 from rangefilter.filters import AdminSplitDateTime, DateRangeFilter, DateTimeRangeFilter
 
-from .models import Photo, Galerie, Collection, Tag, calculer_hash_fichier, ordonner_photos
+from .models import (
+    AccesGalerie,
+    Collection,
+    Galerie,
+    Photo,
+    Tag,
+    VisiteurGalerie,
+    calculer_hash_fichier,
+    ordonner_photos,
+)
 from utilisateurs.models import Utilisateur
 
 # création d'un mixin pour éviter les répétitions de code
@@ -640,3 +649,26 @@ class TagAdmin(RolesContributeursMixin, admin.ModelAdmin):
     def nombre_photos_admin(self, obj):
         url = reverse('admin:galeries_photo_changelist') + f'?tags__id__exact={obj.pk}'
         return format_html('<a href="{}">{}</a>', url, obj.nombre_photos_annote)
+
+
+class VisiteurGalerieInline(admin.TabularInline):
+    model = VisiteurGalerie
+    extra = 1
+    fields = ('email', 'nom', 'est_actif')
+
+
+@admin.register(AccesGalerie)
+class AccesGalerieAdmin(RolesContributeursMixin, admin.ModelAdmin):
+    list_display = ('galerie', 'titre_acces', 'code_acces', 'est_actif', 'date_expiration', 'nombre_acces', 'cree_le')
+    list_filter = ('est_actif', 'galerie')
+    search_fields = ('code_acces', 'titre_acces', 'galerie__nom')
+    readonly_fields = ('code_acces', 'nombre_acces', 'cree_le', 'modifie_le')
+    inlines = [VisiteurGalerieInline]
+
+
+@admin.register(VisiteurGalerie)
+class VisiteurGalerieAdmin(RolesContributeursMixin, admin.ModelAdmin):
+    list_display = ('email', 'nom', 'acces_galerie', 'est_actif', 'nombre_visites', 'date_dernier_acces')
+    list_filter = ('est_actif', 'acces_galerie__galerie')
+    search_fields = ('email', 'nom', 'acces_galerie__galerie__nom')
+    readonly_fields = ('token_acces', 'date_premier_acces', 'date_dernier_acces', 'nombre_visites', 'cree_le', 'modifie_le')
