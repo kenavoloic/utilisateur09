@@ -1,7 +1,8 @@
+from django.contrib import messages
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
-from .models import Collection, Galerie, ordonner_photos
+from .models import Collection, Galerie, VisiteurGalerie, ordonner_photos
 
 
 def galerie_detail(request, galerie_slug):
@@ -64,3 +65,51 @@ def collection_detail(request, galerie_slug, collection_slug):
     }
 
     return render(request, "accueil/collection_detail.html", context)
+
+
+def galerie_privee(request, galerie_slug):
+    """Vue pour afficher une galerie privée à un visiteur authentifié.
+
+    L'authentification se fait par token, transmis soit en session (suite à la
+    saisie du code d'accès sur l'accueil), soit en paramètre d'URL (lien direct
+    envoyé par email), ce qui permet de retrouver le visiteur sans relire le code.
+    """
+    token_url = request.GET.get("token")
+    token = token_url or request.session.get("visiteur_token")
+
+    visiteur = VisiteurGalerie.get_visiteur_par_token(token) if token else None
+
+    if (
+        not visiteur
+        or not visiteur.peut_acceder()
+        or visiteur.acces_galerie.galerie.slug != galerie_slug
+    ):
+        messages.error(request, "Accès non autorisé à cette galerie privée.")
+        return redirect("accueil:index")
+
+    # Un lien direct (token en paramètre) non encore présent en session
+    # correspond à une nouvelle visite ; on ne recompte pas les rechargements
+    # de page d'une session déjà authentifiée.
+    if token_url and request.session.get("visiteur_token") != token:
+        visiteur.marquer_visite()
+        visiteur.acces_galerie.incrementer_acces()
+
+    request.session["visiteur_token"] = visiteur.token_acces
+    request.session["acces_galerie_id"] = visiteur.acces_galerie_id
+
+    galerie = visiteur.acces_galerie.galerie
+
+    collections = list(galerie.collections.order_by("ordre_affichage", "nom"))
+
+    photos_directes = ordonner_photos(
+        galerie.photos.exclude(collections__galerie=galerie).distinct(),
+        galerie.ordre_photos,
+    )
+
+    context = {
+        "galerie": galerie,
+        "collections": collections,
+        "photos_directes": photos_directes,
+    }
+
+    return render(request, "accueil/galerie_detail.html", context)

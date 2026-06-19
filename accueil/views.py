@@ -18,6 +18,7 @@
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from galeries.models import AccesGalerie, Galerie, VisiteurGalerie
 
@@ -81,7 +82,9 @@ def index(request):
             request.session["acces_galerie_id"] = acces.id
 
             # Rediriger vers la galerie privée
-            galerie_url = f"/galerie/prive/{acces.galerie.slug}/"
+            galerie_url = reverse(
+                "galeries:galerie_privee", kwargs={"galerie_slug": acces.galerie.slug}
+            )
             return JsonResponse(
                 {
                     "success": True,
