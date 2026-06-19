@@ -6,4 +6,9 @@ app_name = "galeries"
 
 urlpatterns = [
     path("<slug:galerie_slug>/", views.galerie_detail, name="galerie_detail"),
+    path(
+        "<slug:galerie_slug>/<slug:collection_slug>/",
+        views.collection_detail,
+        name="collection_detail",
+    ),
 ]

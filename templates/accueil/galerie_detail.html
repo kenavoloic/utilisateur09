@@ -29,13 +29,47 @@
   <div class="page-title-row">
     <h1 class="page-title reveal reveal-d1">{{ galerie.nom }}</h1>
     <span class="page-meta reveal reveal-d2">
-      {% with count=galerie.get_total_photos %}{{ count }} photo{% if count > 1 %}s{% endif %}{% endwith %}
+      {% if collections %}
+        {% with c_count=collections|length t_count=galerie.get_total_photos %}{{ c_count }} collection{% if c_count > 1 %}s{% endif %} · {{ t_count }} photo{% if t_count > 1 %}s{% endif %}{% endwith %}
+      {% else %}
+        {% with count=galerie.get_total_photos %}{{ count }} photo{% if count > 1 %}s{% endif %}{% endwith %}
+      {% endif %}
     </span>
   </div>
   {% if galerie.description %}
     <p class="page-desc reveal reveal-d3">{{ galerie.description }}</p>
   {% endif %}
 </header>
+
+{% if collections %}
+<section class="collections-section">
+  <p class="section-eyebrow reveal">Collections</p>
+  <div class="collections-grid">
+    {% for collection in collections %}
+    <a class="collection-card reveal {% cycle '' 'reveal-d1' %}" href="{{ collection.get_absolute_url }}">
+      <div class="collection-body">
+        <div>
+          <div class="collection-title">{{ collection.nom }}</div>
+          <div class="collection-meta">{% with count=collection.nombre_photos %}{{ count }} photo{% if count > 1 %}s{% endif %}{% endwith %}</div>
+        </div>
+        <span class="collection-arrow">↗</span>
+      </div>
+      <div class="collection-image">
+        <div class="collection-image-inner">
+          {% with photo_couverture=collection.get_photo_couverture %}
+            {% if photo_couverture and photo_couverture.image %}
+              <img src="{{ photo_couverture.image.url }}" alt="{{ collection.nom }}" loading="lazy" />
+            {% else %}
+              <div class="collection-image-placeholder"></div>
+            {% endif %}
+          {% endwith %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 {% if photos_directes %}
 <section class="photos-section">
@@ -58,31 +92,8 @@
 </section>
 {% endif %}
 
-{% for collection in collections %}
-<section class="photos-section">
-  <p class="section-eyebrow reveal">{{ collection.nom }}</p>
-  <div class="photos-grid adaptive" data-ordre-manuel="{{ collection.masonry_layout_manuel|yesno:'true,false' }}">
-    {% for photo in collection.photos_ordonnees %}
-      <div class="photo-item reveal">
-        {% if photo.image %}
-          <a class="photo-link" href="{{ photo.image.url }}">
-            <img src="{{ photo.image.url }}" alt="{{ photo.titre|default:collection.nom }}" />
-          </a>
-        {% else %}
-          <div class="photo-placeholder">
-            <span>📷</span>
-          </div>
-        {% endif %}
-      </div>
-    {% empty %}
-      <p class="empty-message">Aucune photo disponible pour le moment.</p>
-    {% endfor %}
-  </div>
-</section>
-{% empty %}
-  {% if not photos_directes %}
-    <p class="empty-message">Aucune photo disponible pour le moment.</p>
-  {% endif %}
-{% endfor %}
+{% if not collections and not photos_directes %}
+  <p class="empty-message">Aucune photo disponible pour le moment.</p>
+{% endif %}
 
 {% endblock %}

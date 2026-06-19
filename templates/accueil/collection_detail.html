@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ collection.nom }} — Hors les Murs{% endblock %}
+{% block description %}{{ galerie.nom }} — {{ collection.nom }}{% endblock %}
+
+{% block nav_class %}solid{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/collection.css' %}" />
+<link rel="stylesheet" href="{% static 'css/lightbox.css' %}" />
+{% endblock %}
+
+{% block content %}
+
+<header class="page-header">
+  <div class="breadcrumb reveal">
+    <a href="{% url 'accueil:index' %}">Accueil</a>
+    <span>→</span>
+    <a href="{% url 'galeries:galerie_detail' galerie_slug=galerie.slug %}">{{ galerie.nom }}</a>
+    <span>→</span>
+    <span class="current">{{ collection.nom }}</span>
+  </div>
+  <div class="page-title-row">
+    <h1 class="page-title reveal reveal-d1">{{ collection.nom }}</h1>
+    <div class="page-meta-stack reveal reveal-d2">
+      <span class="page-photos">{% with count=photos|length %}{{ count }} photo{% if count > 1 %}s{% endif %}{% endwith %}</span>
+    </div>
+  </div>
+</header>
+
+<section class="photo-section">
+  <div class="photos-grid adaptive" data-ordre-manuel="{{ collection.masonry_layout_manuel|yesno:'true,false' }}">
+    {% for photo in photos %}
+      <div class="photo-item reveal">
+        {% if photo.image %}
+          <a class="photo-link" href="{{ photo.image.url }}">
+            <img src="{{ photo.image.url }}" alt="{{ photo.titre|default:collection.nom }}" />
+          </a>
+        {% else %}
+          <div class="photo-placeholder">
+            <span>📷</span>
+          </div>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="empty-message">Aucune photo disponible pour le moment.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<nav class="collection-nav" aria-label="Navigation collections">
+  {% if collection_precedente %}
+    <a class="collection-nav-link prev" href="{{ collection_precedente.get_absolute_url }}">
+      <span class="collection-nav-arrow">←</span>
+      <span>{{ collection_precedente.nom }}</span>
+    </a>
+  {% else %}
+    <span class="collection-nav-link prev disabled">
+      <span class="collection-nav-arrow">←</span>
+      <span>Collection précédente</span>
+    </span>
+  {% endif %}
+
+  {% if collection_suivante %}
+    <a class="collection-nav-link next" href="{{ collection_suivante.get_absolute_url }}">
+      <span class="collection-nav-arrow">→</span>
+      <span>{{ collection_suivante.nom }}</span>
+    </a>
+  {% else %}
+    <span class="collection-nav-link next disabled">
+      <span class="collection-nav-arrow">→</span>
+      <span>Collection suivante</span>
+    </span>
+  {% endif %}
+</nav>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/masonry-optimized.js' %}"></script>
+<script src="{% static 'js/lightbox.js' %}"></script>
+{% endblock %}

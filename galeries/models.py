@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
 from django.db import models
+from django.urls import reverse
 from django.utils.text import slugify
 
 
@@ -153,6 +154,16 @@ class Collection(models.Model):
         return Collection.objects.filter(pk=self.pk).aggregate(
             nombre=models.Count('photos', distinct=True)
         )['nombre']
+
+    def get_photo_couverture(self):
+        """Retourne la photo marquée comme couverture, sinon None"""
+        return self.photos.filter(est_couverture=True).first()
+
+    def get_absolute_url(self):
+        return reverse(
+            'galeries:collection_detail',
+            kwargs={'galerie_slug': self.galerie.slug, 'collection_slug': self.slug},
+        )
 
 
 class Tag(models.Model):
